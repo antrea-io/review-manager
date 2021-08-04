@@ -1,0 +1,8 @@
+owners:
+  area/area-1:
+  - alice
+  - bob
+
+  area/area-2:
+  - bob
+  - john

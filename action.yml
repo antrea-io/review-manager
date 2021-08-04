@@ -1,15 +1,15 @@
 name: 'review-manager'
 description: 'Manage code reviews for your PRs'
 inputs:
-  min-approving-reviews-total:
+  min_approving_reviews_total:
     description: 'Min number of total approving reviews for success'
     required: false
     default: 2
-  min-approving-reviews-per-area:
+  min_approving_reviews_per_area:
     description: 'Min number of approving reviews for each area label'
     required: false
     default: 1
-  area-ownership-file:
+  area_ownership_file:
     description: 'Repository file which includes the owners for each area label'
     required: true
     default: '.github/AREA-OWNERS'
