@@ -1,0 +1,19 @@
+name: 'review-manager'
+description: 'Manage code reviews for your PRs'
+inputs:
+  min-approving-reviews-total:
+    description: 'Min number of total approving reviews for success'
+    required: false
+    default: 2
+  min-approving-reviews-per-area:
+    description: 'Min number of approving reviews for each area label'
+    required: false
+    default: 1
+  area-ownership-file:
+    description: 'Repository file which includes the owners for each area label'
+    required: true
+    default: '.github/AREA-OWNERS'
+outputs:
+runs:
+  using: 'node12'
+  main: 'index.js'
