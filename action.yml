@@ -13,7 +13,6 @@ inputs:
     description: 'Repository file which includes the owners for each area label'
     required: true
     default: '.github/AREA-OWNERS'
-outputs:
 runs:
   using: 'node12'
   main: 'index.js'
