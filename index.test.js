@@ -5,7 +5,7 @@ const reviewers = require('./reviewers');
 
 test('parse owners', async () => {
     const areaOwners = inputs.parseOwners('testdata/owners.yml');
-    expect(areaOwners['area/area-1']).toEqual(expect.arrayContaining(['alice', 'bob']));
+    expect(areaOwners.get('area/area-1')).toEqual(expect.arrayContaining(['alice', 'bob']));
 });
 
 test('compute reviewers', async () => {

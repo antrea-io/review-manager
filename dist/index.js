@@ -9,7 +9,7 @@ const fs   = __nccwpck_require__(5747);
 
 let parseOwners = function(path) {
     const areaOwners = yaml.load(fs.readFileSync(path, 'utf8'));
-    return areaOwners.owners
+    return new Map(Object.entries(areaOwners.owners))
 }
 
 exports.parseOwners = parseOwners;
