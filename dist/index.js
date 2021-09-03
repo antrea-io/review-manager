@@ -10255,7 +10255,9 @@ function wrappy (fn, cb) {
 /***/ }),
 
 /***/ 1385:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+const github = __nccwpck_require__(5438);
 
 let computeReviewers = function(labels, areaOwners) {
     const reviewers = new Set()
@@ -10266,10 +10268,22 @@ let computeReviewers = function(labels, areaOwners) {
         }
         owners.forEach(owner => reviewers.add(owner))
     })
-    return reviewers
+    return Array.from(reviewers)
+}
+
+async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
+    const octokit = github.getOctokit(token);
+
+    return octokit.pulls.requestReviewers({
+        owner: owner,
+        repo: repo,
+        pull_number: pullNumber,
+        reviewers: reviewers,
+    });
 }
 
 exports.computeReviewers = computeReviewers;
+exports.requireReviewers = requireReviewers;
 
 
 /***/ }),
@@ -10434,18 +10448,23 @@ const reviewers = __nccwpck_require__(1385);
 
 async function run() {
     try {
+        const token = core.getInput('token');
         // const minApprovingReviewsTotal = core.getInput('min_approving_reviews_total');
         // const minApprovingReviewsPerArea = core.getInput('min_approving_reviews_per_area');
         const areaOwnershipFile = core.getInput('area_ownership_file');
         console.log(`Parsing owners file ${areaOwnershipFile}`);
         const areaOwners = inputs.parseOwners(areaOwnershipFile)
         console.log(`Area owners:`, areaOwners)
+        const owner = github.context.owner
+        const repo = github.context.repo
         // Get the JSON webhook payload for the event that triggered the workflow
         const payload = JSON.stringify(github.context.payload, undefined, 2)
         console.log(`The event payload: ${payload}`);
         const pullRequest = github.context.payload.pull_request
-        const reviewersSets = reviewers.computeReviewers(pullRequest.labels, areaOwners)
-        console.log(`reviewers:`, reviewersSets)
+        const reviewersList = reviewers.computeReviewers(pullRequest.labels, areaOwners)
+        console.log(`Assigning reviewers:`, reviewersList)
+        const pullNumber = pullRequest.number
+        await reviewers.requireReviewers(owner, repo, pullNumber, token, reviewersList)
     } catch (error) {
         core.setFailed(error.message);
     }

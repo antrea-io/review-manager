@@ -1,3 +1,5 @@
+const github = require('@actions/github');
+
 let computeReviewers = function(labels, areaOwners) {
     const reviewers = new Set()
     labels.forEach(label => {
@@ -7,7 +9,19 @@ let computeReviewers = function(labels, areaOwners) {
         }
         owners.forEach(owner => reviewers.add(owner))
     })
-    return reviewers
+    return Array.from(reviewers)
+}
+
+async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
+    const octokit = github.getOctokit(token);
+
+    return octokit.pulls.requestReviewers({
+        owner: owner,
+        repo: repo,
+        pull_number: pullNumber,
+        reviewers: reviewers,
+    });
 }
 
 exports.computeReviewers = computeReviewers;
+exports.requireReviewers = requireReviewers;

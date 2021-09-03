@@ -1,6 +1,8 @@
 name: 'review-manager'
 description: 'Manage code reviews for your PRs'
 inputs:
+  token:
+    required: true
   min_approving_reviews_total:
     description: 'Min number of total approving reviews for success'
     required: false
