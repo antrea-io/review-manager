@@ -10274,7 +10274,7 @@ let computeReviewers = function(labels, areaOwners) {
 async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
     const octokit = github.getOctokit(token);
 
-    return octokit.pulls.requestReviewers({
+    return octokit.rest.pulls.requestReviewers({
         owner: owner,
         repo: repo,
         pull_number: pullNumber,
