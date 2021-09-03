@@ -7,7 +7,7 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 const yaml = __nccwpck_require__(1917)
 const fs   = __nccwpck_require__(5747);
 
-let parseOwners = function (path) {
+let parseOwners = function(path) {
     const areaOwners = yaml.load(fs.readFileSync(path, 'utf8'));
     return areaOwners.owners
 }
@@ -10254,6 +10254,26 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 1385:
+/***/ ((__unused_webpack_module, exports) => {
+
+let computeReviewers = function(labels, areaOwners) {
+    const reviewers = new Set()
+    labels.forEach(label => {
+        const owners = areaOwners.get(label.name)
+        if (owners === undefined) {
+            return
+        }
+        owners.forEach(owner => reviewers.add(owner))
+    })
+    return reviewers
+}
+
+exports.computeReviewers = computeReviewers;
+
+
+/***/ }),
+
 /***/ 2877:
 /***/ ((module) => {
 
@@ -10410,20 +10430,28 @@ var __webpack_exports__ = {};
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const inputs = __nccwpck_require__(8896);
+const reviewers = __nccwpck_require__(1385);
 
-try {
-    const minApprovingReviewsTotal = core.getInput('min_approving_reviews_total');
-    const minApprovingReviewsPerArea = core.getInput('min_approving_reviews_per_area');
-    const areaOwnershipFile = core.getInput('area_ownership_file');
-    console.log(`Parsing owners file ${areaOwnershipFile}`);
-    const areaOwners = inputs.parseOwners(areaOwnershipFile)
-    console.log(`Area owners:`, areaOwners)
-    // Get the JSON webhook payload for the event that triggered the workflow
-    const payload = JSON.stringify(github.context.payload, undefined, 2)
-    console.log(`The event payload: ${payload}`);
-} catch (error) {
-    core.setFailed(error.message);
+async function run() {
+    try {
+        // const minApprovingReviewsTotal = core.getInput('min_approving_reviews_total');
+        // const minApprovingReviewsPerArea = core.getInput('min_approving_reviews_per_area');
+        const areaOwnershipFile = core.getInput('area_ownership_file');
+        console.log(`Parsing owners file ${areaOwnershipFile}`);
+        const areaOwners = inputs.parseOwners(areaOwnershipFile)
+        console.log(`Area owners:`, areaOwners)
+        // Get the JSON webhook payload for the event that triggered the workflow
+        const payload = JSON.stringify(github.context.payload, undefined, 2)
+        console.log(`The event payload: ${payload}`);
+        const pullRequest = github.context.payload.pull_request
+        const reviewersSets = reviewers.computeReviewers(pullRequest.labels, areaOwners)
+        console.log(`reviewers:`, reviewersSets)
+    } catch (error) {
+        core.setFailed(error.message);
+    }
 }
+
+run()
 
 })();
 
