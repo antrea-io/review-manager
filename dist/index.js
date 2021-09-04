@@ -4020,6 +4020,60 @@ function removeHook(state, name, method) {
 
 /***/ }),
 
+/***/ 385:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var util = __nccwpck_require__(1669)
+
+var levels = ['trace', 'debug', 'info', 'warn', 'error', 'fatal']
+var noop = function () {}
+
+module.exports = function (opts) {
+  opts = opts || {}
+  opts.level = opts.level || 'info'
+
+  var logger = {}
+
+  var shouldLog = function (level) {
+    return levels.indexOf(level) >= levels.indexOf(opts.level)
+  }
+
+  levels.forEach(function (level) {
+    logger[level] = shouldLog(level) ? log : noop
+
+    function log () {
+      var prefix = opts.prefix
+      var normalizedLevel
+
+      if (opts.stderr) {
+        normalizedLevel = 'error'
+      } else {
+        switch (level) {
+          case 'trace': normalizedLevel = 'info'; break
+          case 'debug': normalizedLevel = 'info'; break
+          case 'fatal': normalizedLevel = 'error'; break
+          default: normalizedLevel = level
+        }
+      }
+
+      if (prefix) {
+        if (typeof prefix === 'function') prefix = prefix(level)
+        arguments[0] = util.format(prefix, arguments[0])
+      }
+
+      console[normalizedLevel](util.format.apply(util, arguments))
+    }
+  })
+
+  return logger
+}
+
+
+/***/ }),
+
 /***/ 8932:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -10272,7 +10326,8 @@ let computeReviewers = function(labels, areaOwners) {
 }
 
 async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
-    const octokit = github.getOctokit(token);
+    // const octokit = github.getOctokit(token, {log: console});
+    const octokit = github.getOctokit(token, {log: __nccwpck_require__(385)({ level: "info" })});
 
     return octokit.rest.pulls.requestReviewers({
         owner: owner,
