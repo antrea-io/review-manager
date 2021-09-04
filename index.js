@@ -18,7 +18,7 @@ async function run() {
         const payload = JSON.stringify(github.context.payload, undefined, 2)
         console.log(`The event payload: ${payload}`);
         const pullRequest = github.context.payload.pull_request
-        const reviewersList = reviewers.computeReviewers(pullRequest.labels, areaOwners)
+        const reviewersList = reviewers.computeReviewers(pullRequest.labels, pullRequest.user.login, areaOwners)
         console.log(`Assigning reviewers:`, reviewersList)
         const pullNumber = pullRequest.number
         await reviewers.requireReviewers(owner, repo, pullNumber, token, reviewersList)

@@ -10313,7 +10313,7 @@ function wrappy (fn, cb) {
 
 const github = __nccwpck_require__(5438);
 
-let computeReviewers = function(labels, areaOwners) {
+let computeReviewers = function(labels, author, areaOwners) {
     const reviewers = new Set()
     labels.forEach(label => {
         const owners = areaOwners.get(label.name)
@@ -10322,12 +10322,22 @@ let computeReviewers = function(labels, areaOwners) {
         }
         owners.forEach(owner => reviewers.add(owner))
     })
+    reviewers.delete(author)
     return Array.from(reviewers)
 }
 
 async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
     // const octokit = github.getOctokit(token, {log: console});
     const octokit = github.getOctokit(token, {log: __nccwpck_require__(385)({ level: "info" })});
+
+    console.log(
+      JSON.stringify({
+        owner: owner,
+        repo: repo,
+        pull_number: pullNumber,
+        reviewers: reviewers,
+      })
+    );
 
     try {
         await octokit.rest.pulls.requestReviewers({
@@ -10523,7 +10533,7 @@ async function run() {
         const payload = JSON.stringify(github.context.payload, undefined, 2)
         console.log(`The event payload: ${payload}`);
         const pullRequest = github.context.payload.pull_request
-        const reviewersList = reviewers.computeReviewers(pullRequest.labels, areaOwners)
+        const reviewersList = reviewers.computeReviewers(pullRequest.labels, pullRequest.user.login, areaOwners)
         console.log(`Assigning reviewers:`, reviewersList)
         const pullNumber = pullRequest.number
         await reviewers.requireReviewers(owner, repo, pullNumber, token, reviewersList)
