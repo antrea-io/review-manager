@@ -10328,7 +10328,7 @@ let computeReviewers = function(labels, author, areaOwners) {
 
 async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
     // const octokit = github.getOctokit(token, {log: console});
-    const octokit = github.getOctokit(token, {log: __nccwpck_require__(385)({ level: "info" })});
+    const octokit = github.getOctokit(token, {log: __nccwpck_require__(385)({ level: "debug" })});
 
     console.log(
       JSON.stringify({
@@ -10347,10 +10347,8 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             reviewers: reviewers,
         });
     } catch(err) {
-        if (err.status === 404) {
-            throw new Error("Cannot assign reviewers")
-        }
-        throw err;
+        console.log('cannot assign reviewers:', err)
+        throw err
     }
 }
 
@@ -10527,8 +10525,8 @@ async function run() {
         console.log(`Parsing owners file ${areaOwnershipFile}`);
         const areaOwners = inputs.parseOwners(areaOwnershipFile)
         console.log(`Area owners:`, areaOwners)
-        const owner = github.context.owner
-        const repo = github.context.repo
+        const owner = github.context.repo.owner
+        const repo = github.context.repo.repo
         // Get the JSON webhook payload for the event that triggered the workflow
         const payload = JSON.stringify(github.context.payload, undefined, 2)
         console.log(`The event payload: ${payload}`);

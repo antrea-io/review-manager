@@ -15,7 +15,7 @@ let computeReviewers = function(labels, author, areaOwners) {
 
 async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
     // const octokit = github.getOctokit(token, {log: console});
-    const octokit = github.getOctokit(token, {log: require("console-log-level")({ level: "info" })});
+    const octokit = github.getOctokit(token, {log: require("console-log-level")({ level: "debug" })});
 
     console.log(
       JSON.stringify({
@@ -34,10 +34,8 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             reviewers: reviewers,
         });
     } catch(err) {
-        if (err.status === 404) {
-            throw new Error("Cannot assign reviewers")
-        }
-        throw err;
+        console.log('cannot assign reviewers:', err)
+        throw err
     }
 }
 

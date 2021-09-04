@@ -12,8 +12,8 @@ async function run() {
         console.log(`Parsing owners file ${areaOwnershipFile}`);
         const areaOwners = inputs.parseOwners(areaOwnershipFile)
         console.log(`Area owners:`, areaOwners)
-        const owner = github.context.owner
-        const repo = github.context.repo
+        const owner = github.context.repo.owner
+        const repo = github.context.repo.repo
         // Get the JSON webhook payload for the event that triggered the workflow
         const payload = JSON.stringify(github.context.payload, undefined, 2)
         console.log(`The event payload: ${payload}`);
