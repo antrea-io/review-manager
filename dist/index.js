@@ -10329,12 +10329,19 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
     // const octokit = github.getOctokit(token, {log: console});
     const octokit = github.getOctokit(token, {log: __nccwpck_require__(385)({ level: "info" })});
 
-    return octokit.rest.pulls.requestReviewers({
-        owner: owner,
-        repo: repo,
-        pull_number: pullNumber,
-        reviewers: reviewers,
-    });
+    try {
+        await octokit.rest.pulls.requestReviewers({
+            owner: owner,
+            repo: repo,
+            pull_number: pullNumber,
+            reviewers: reviewers,
+        });
+    } catch(err) {
+        if (err.status === 404) {
+            throw new Error("Cannot assign reviewers")
+        }
+        throw err;
+    }
 }
 
 exports.computeReviewers = computeReviewers;
