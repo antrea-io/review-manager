@@ -15,6 +15,14 @@ inputs:
     description: 'Repository file which includes the owners for each area label'
     required: true
     default: '.github/AREA-OWNERS'
+  fail_if_missing_approving_reviews:
+    description: 'Fail action if there are not enough approving reviews'
+    required: false
+    default: false
+  label_on_success:
+    description: 'Label the PR with this label if there are enough approving reviews'
+    required: false
+    default: ''
 runs:
   using: 'node12'
   main: 'dist/index.js'

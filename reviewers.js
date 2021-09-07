@@ -3,7 +3,7 @@ const github = require('@actions/github');
 let computeReviewers = function(labels, author, areaOwners) {
     const reviewers = new Set()
     labels.forEach(label => {
-        const owners = areaOwners.get(label.name)
+        const owners = areaOwners.get(label)
         if (owners === undefined) {
             return
         }
@@ -34,7 +34,7 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             reviewers: reviewers,
         });
     } catch(err) {
-        console.log('cannot assign reviewers:', err)
+        console.log(`cannot assign reviewers: ${err}`)
         throw err
     }
 }

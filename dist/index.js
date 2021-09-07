@@ -1,6 +1,89 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 7187:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+const github = __nccwpck_require__(5438);
+
+async function getApprovals(owner, repo, pullNumber, token) {
+    const octokit = github.getOctokit(token)
+    const approvals = new Set()
+
+    try {
+        for await (const res of octokit.paginate.iterator(octokit.rest.pulls.listReviews, {
+            owner: owner,
+            repo: repo,
+            pull_number: pullNumber,
+            per_page: 100,
+        })) {
+            res.data.forEach(review => {
+                if (review.state === 'APPROVED') {
+                    approvals.add(review.user.login)
+                }
+            });
+        }
+    } catch(err) {
+        console.log(`cannot determine approvals: ${err}`)
+        throw err
+    }
+
+    return approvals
+}
+
+let canBeMerged = function(
+    labels,
+    approvals,
+    areaOwners,
+    minApprovingReviewsTotal,
+    minApprovingReviewsPerArea,
+) {
+    const approvalsByArea = new Map()
+    labels.forEach(label => {
+        const owners = areaOwners.get(label)
+        if (owners === undefined) {
+            return
+        }
+        let approvalsForArea = []
+        owners.forEach(owner => {
+            if (approvals.has(owner)) {
+                approvalsForArea.push(owner)
+            }
+        })
+        approvalsByArea.set(label, approvalsForArea)
+    })
+
+    console.log(`Approvals: ${Array.from(approvals)}`)
+    console.log(`Approvals by area: ${JSON.stringify(Array.from(approvalsByArea))}`)
+
+    var result = true
+
+    if (approvals.size < minApprovingReviewsTotal) {
+        console.log(`Insufficient number of approvals: expected ${minApprovingReviewsTotal} but got ${approvals.size}`)
+        result = false
+    }
+
+    if (approvalsByArea.size < 1) {
+        console.log(`At least one area label is required for a pull request`)
+        result = false
+    }
+
+    approvalsByArea.forEach(function(approvals, area) {
+        if (approvals.length < minApprovingReviewsPerArea) {
+            console.log(`Not enough approvals for area ${area}: expected ${minApprovingReviewsPerArea} but got ${approvals.size}`)
+            result = false
+        }
+    })
+
+    return result
+}
+
+exports.getApprovals = getApprovals;
+exports.canBeMerged = canBeMerged;
+
+
+/***/ }),
+
 /***/ 8896:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -13,6 +96,41 @@ let parseOwners = function(path) {
 }
 
 exports.parseOwners = parseOwners;
+
+
+/***/ }),
+
+/***/ 8188:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+const github = __nccwpck_require__(5438);
+
+async function addLabel(owner, repo, pullNumber, token, label) {
+    const octokit = github.getOctokit(token);
+
+    console.log(
+        JSON.stringify({
+        owner: owner,
+        repo: repo,
+        pull_number: pullNumber,
+        label: label,
+      })
+    );
+
+    try {
+        await octokit.rest.issues.addLabels({
+            owner: owner,
+            repo: repo,
+            issue_number: pullNumber,
+            labels: [label],
+        });
+    } catch(err) {
+        console.log(`cannot add label: ${err}`)
+        throw err
+    }
+}
+
+exports.addLabel = addLabel;
 
 
 /***/ }),
@@ -10316,7 +10434,7 @@ const github = __nccwpck_require__(5438);
 let computeReviewers = function(labels, author, areaOwners) {
     const reviewers = new Set()
     labels.forEach(label => {
-        const owners = areaOwners.get(label.name)
+        const owners = areaOwners.get(label)
         if (owners === undefined) {
             return
         }
@@ -10347,7 +10465,7 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             reviewers: reviewers,
         });
     } catch(err) {
-        console.log('cannot assign reviewers:', err)
+        console.log(`cannot assign reviewers: ${err}`)
         throw err
     }
 }
@@ -10515,13 +10633,22 @@ const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const inputs = __nccwpck_require__(8896);
 const reviewers = __nccwpck_require__(1385);
+const approval = __nccwpck_require__(7187);
+const label = __nccwpck_require__(8188);
+
+let extractLabelNames = function(labels) {
+    return labels.map(label => label.name)
+}
 
 async function run() {
     try {
         const token = core.getInput('token');
-        // const minApprovingReviewsTotal = core.getInput('min_approving_reviews_total');
-        // const minApprovingReviewsPerArea = core.getInput('min_approving_reviews_per_area');
+        const minApprovingReviewsTotal = core.getInput('min_approving_reviews_total');
+        const minApprovingReviewsPerArea = core.getInput('min_approving_reviews_per_area');
         const areaOwnershipFile = core.getInput('area_ownership_file');
+        const failIfMissingApprovingReviews = core.getInput('fail_if_missing_approving_reviews');
+        const labelOnSuccess = core.getInput('label_on_success');
+
         console.log(`Parsing owners file ${areaOwnershipFile}`);
         const areaOwners = inputs.parseOwners(areaOwnershipFile)
         console.log(`Area owners:`, areaOwners)
@@ -10531,10 +10658,36 @@ async function run() {
         const payload = JSON.stringify(github.context.payload, undefined, 2)
         console.log(`The event payload: ${payload}`);
         const pullRequest = github.context.payload.pull_request
-        const reviewersList = reviewers.computeReviewers(pullRequest.labels, pullRequest.user.login, areaOwners)
+        const labels = extractLabelNames(pullRequest.labels)
+
+        const reviewersList = reviewers.computeReviewers(
+            labels,
+            pullRequest.user.login,
+            areaOwners,
+        )
         console.log(`Assigning reviewers:`, reviewersList)
         const pullNumber = pullRequest.number
         await reviewers.requireReviewers(owner, repo, pullNumber, token, reviewersList)
+
+        const approvals = await approval.getApprovals(owner, repo, pullNumber, token)
+        console.log(`Currrent approvals: ${approvals}`)
+        const canBeMerged = approval.canBeMerged(
+            labels,
+            approvals,
+            areaOwners,
+            minApprovingReviewsTotal,
+            minApprovingReviewsPerArea,
+        )
+        console.log(`Checking if PR can be merged: ${canBeMerged}`)
+
+        if (canBeMerged && labelOnSuccess !== '') {
+            console.log(`Labelling PR with ${labelOnSuccess}`)
+            await label.addLabel(owner, repo, pullNumber, token, labelOnSuccess)
+        }
+
+        if (!canBeMerged && failIfMissingApprovingReviews) {
+            core.setFailed(`Not enough approving reviews for PR`)
+        }
     } catch (error) {
         core.setFailed(error.message);
     }
