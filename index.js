@@ -39,11 +39,17 @@ async function run() {
         const repo = github.context.repo.repo;
         // Get the JSON webhook payload for the event that triggered the workflow
         const payload = JSON.stringify(github.context.payload, undefined, 2);
-        console.log(`The event payload: ${payload}`);
+        console.debug(`The event payload: ${payload}`);
         const pullRequest = github.context.payload.pull_request;
         const labels = extractLabelNames(pullRequest.labels);
 
+        if (pullRequest.draft) {
+            console.log(`Skipping PR because it is a draft`);
+            return;
+        }
+
         if (config.ignoreIfNotLabelledWith != '' && !labels.includes(config.ignoreIfNotLabelledWith)) {
+            console.log(`Skipping PR because label ${config.ignoreIfNotLabelledWith} is not present`);
             return;
         }
 
