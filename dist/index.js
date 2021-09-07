@@ -23,31 +23,36 @@ async function getApprovals(owner, repo, pullNumber, token) {
                 }
             });
         }
-    } catch(err) {
-        console.log(`cannot determine approvals: ${err}`)
-        throw err
+    } catch(error) {
+        console.log(`cannot determine approvals: ${error}`)
+        throw error
     }
 
     return approvals
 }
 
-let canBeMerged = function(
-    labels,
-    approvals,
-    areaOwners,
-    minApprovingReviewsTotal,
-    minApprovingReviewsPerArea,
-) {
+let canBeMerged = function(labels, approvals, config) {
+    var hasMaintainerApproval = false
+    config.maintainers.forEach(maintainer => {
+        if (approvals.has(maintainer)) {
+            hasMaintainerApproval = true
+        }
+    })
+    if (hasMaintainerApproval && config.succeedIfMaintainerApproves) {
+        console.log(`PR was approved by maintainer`)
+        return true
+    }
+
     const approvalsByArea = new Map()
     labels.forEach(label => {
-        const owners = areaOwners.get(label)
-        if (owners === undefined) {
+        const approversForArea = config.areaApprovers.get(label)
+        if (approversForArea === undefined) {
             return
         }
         let approvalsForArea = []
-        owners.forEach(owner => {
-            if (approvals.has(owner)) {
-                approvalsForArea.push(owner)
+        approversForArea.forEach(approver => {
+            if (approvals.has(approver)) {
+                approvalsForArea.push(approver)
             }
         })
         approvalsByArea.set(label, approvalsForArea)
@@ -58,19 +63,19 @@ let canBeMerged = function(
 
     var result = true
 
-    if (approvals.size < minApprovingReviewsTotal) {
-        console.log(`Insufficient number of approvals: expected ${minApprovingReviewsTotal} but got ${approvals.size}`)
+    if (approvals.size < config.minApprovingReviewsTotal) {
+        console.log(`Insufficient number of approvals: expected ${config.minApprovingReviewsTotal} but got ${approvals.size}`)
         result = false
     }
 
-    if (approvalsByArea.size < 1) {
+    if (approvalsByArea.size < 1 && config.failIfNoAreaLabel) {
         console.log(`At least one area label is required for a pull request`)
         result = false
     }
 
     approvalsByArea.forEach(function(approvals, area) {
-        if (approvals.length < minApprovingReviewsPerArea) {
-            console.log(`Not enough approvals for area ${area}: expected ${minApprovingReviewsPerArea} but got ${approvals.size}`)
+        if (approvals.length < config.minApprovingReviewsPerArea) {
+            console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.size}`)
             result = false
         }
     })
@@ -91,8 +96,17 @@ const yaml = __nccwpck_require__(1917)
 const fs   = __nccwpck_require__(5747);
 
 let parseOwners = function(path) {
-    const areaOwners = yaml.load(fs.readFileSync(path, 'utf8'));
-    return new Map(Object.entries(areaOwners.owners))
+    try {
+        const areaOwners = yaml.load(fs.readFileSync(path, 'utf8'));
+        return {
+            maintainers: new Set(areaOwners.maintainers || []),
+            areaReviewers: new Map(Object.entries(areaOwners.reviewers || {})),
+            areaApprovers: new Map(Object.entries(areaOwners.approvers || {})),
+        }
+    } catch (error) {
+        console.logs(`cannot parse owners file: ${error}`)
+        throw error
+    }
 }
 
 exports.parseOwners = parseOwners;
@@ -124,9 +138,9 @@ async function addLabel(owner, repo, pullNumber, token, label) {
             issue_number: pullNumber,
             labels: [label],
         });
-    } catch(err) {
-        console.log(`cannot add label: ${err}`)
-        throw err
+    } catch(error) {
+        console.log(`cannot add label: ${error}`)
+        throw error
     }
 }
 
@@ -10431,14 +10445,12 @@ function wrappy (fn, cb) {
 
 const github = __nccwpck_require__(5438);
 
-let computeReviewers = function(labels, author, areaOwners) {
+let computeReviewers = function(labels, author, config) {
     const reviewers = new Set()
     labels.forEach(label => {
-        const owners = areaOwners.get(label)
-        if (owners === undefined) {
-            return
-        }
-        owners.forEach(owner => reviewers.add(owner))
+        let reviewersForArea = config.areaReviewers.get(label) || []
+        reviewersForArea = reviewersForArea.concat(config.areaApprovers.get(label) || [])
+        reviewersForArea.forEach(reviewer => reviewers.add(reviewer))
     })
     reviewers.delete(author)
     return Array.from(reviewers)
@@ -10464,9 +10476,9 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             pull_number: pullNumber,
             reviewers: reviewers,
         });
-    } catch(err) {
-        console.log(`cannot assign reviewers: ${err}`)
-        throw err
+    } catch(error) {
+        console.log(`cannot assign reviewers: ${error}`)
+        throw error
     }
 }
 
@@ -10640,18 +10652,32 @@ let extractLabelNames = function(labels) {
     return labels.map(label => label.name)
 }
 
+let getConfig = function() {
+    const areaOwnershipFile = core.getInput('area_ownership_file');
+    console.log(`Parsing owners file ${areaOwnershipFile}`);
+    const {maintainers, areaReviewers, areaApprovers} = inputs.parseOwners(areaOwnershipFile)
+    console.log(`Maintainers:`, maintainers)
+    console.log(`Area reviewers:`, areaReviewers)
+    console.log(`Area approvers:`, areaApprovers)
+    return {
+        minApprovingReviewsTotal: core.getInput('min_approving_reviews_total'),
+        minApprovingReviewsPerArea: core.getInput('min_approving_reviews_per_area'),
+        maintainers: maintainers,
+        areaReviewers: areaReviewers,
+        areaApprovers: areaApprovers,
+        failIfMissingApprovingReviews: core.getInput('fail_if_missing_approving_reviews'),
+        labelOnSuccess: core.getInput('label_on_success'),
+        failIfNoAreaLabel: core.getInput('fail_if_no_area_label'),
+        succeedIfMaintainerApproves: core.getInput('succeed_if_maintainer_approves'),
+        ignoreIfNotLabelledWith: core.getInput('ignore_if_not_labelled_with'),
+   }
+}
+
 async function run() {
     try {
         const token = core.getInput('token');
-        const minApprovingReviewsTotal = core.getInput('min_approving_reviews_total');
-        const minApprovingReviewsPerArea = core.getInput('min_approving_reviews_per_area');
-        const areaOwnershipFile = core.getInput('area_ownership_file');
-        const failIfMissingApprovingReviews = core.getInput('fail_if_missing_approving_reviews');
-        const labelOnSuccess = core.getInput('label_on_success');
+        const config = getConfig();
 
-        console.log(`Parsing owners file ${areaOwnershipFile}`);
-        const areaOwners = inputs.parseOwners(areaOwnershipFile)
-        console.log(`Area owners:`, areaOwners)
         const owner = github.context.repo.owner
         const repo = github.context.repo.repo
         // Get the JSON webhook payload for the event that triggered the workflow
@@ -10660,10 +10686,14 @@ async function run() {
         const pullRequest = github.context.payload.pull_request
         const labels = extractLabelNames(pullRequest.labels)
 
+        if (config.ignoreIfNotLabelledWith != '' && !labels.includes(config.ignoreIfNotLabelledWith)) {
+            return
+        }
+
         const reviewersList = reviewers.computeReviewers(
             labels,
             pullRequest.user.login,
-            areaOwners,
+            config,
         )
         console.log(`Assigning reviewers:`, reviewersList)
         const pullNumber = pullRequest.number
@@ -10674,18 +10704,16 @@ async function run() {
         const canBeMerged = approval.canBeMerged(
             labels,
             approvals,
-            areaOwners,
-            minApprovingReviewsTotal,
-            minApprovingReviewsPerArea,
+            config,
         )
         console.log(`Checking if PR can be merged: ${canBeMerged}`)
 
-        if (canBeMerged && labelOnSuccess !== '') {
-            console.log(`Labelling PR with ${labelOnSuccess}`)
-            await label.addLabel(owner, repo, pullNumber, token, labelOnSuccess)
+        if (canBeMerged && config.labelOnSuccess !== '') {
+            console.log(`Labelling PR with ${config.labelOnSuccess}`)
+            await label.addLabel(owner, repo, pullNumber, token, config.labelOnSuccess)
         }
 
-        if (!canBeMerged && failIfMissingApprovingReviews) {
+        if (!canBeMerged && config.failIfMissingApprovingReviews) {
             core.setFailed(`Not enough approving reviews for PR`)
         }
     } catch (error) {

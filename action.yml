@@ -23,6 +23,18 @@ inputs:
     description: 'Label the PR with this label if there are enough approving reviews'
     required: false
     default: ''
+  fail_if_no_area_label:
+    description: 'If the PR is not labelled with any label from the ownership file, fail'
+    required: false
+    default: true
+  succeed_if_maintainer_approves:
+    description: 'Automatically succeeds if a maintainer left an approving review'
+    required: false
+    default: false
+  ignore_if_not_labelled_with:
+    description: 'Ignore all PRs not labelled with this label'
+    required: false
+    default: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

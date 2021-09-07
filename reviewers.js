@@ -1,13 +1,11 @@
 const github = require('@actions/github');
 
-let computeReviewers = function(labels, author, areaOwners) {
+let computeReviewers = function(labels, author, config) {
     const reviewers = new Set()
     labels.forEach(label => {
-        const owners = areaOwners.get(label)
-        if (owners === undefined) {
-            return
-        }
-        owners.forEach(owner => reviewers.add(owner))
+        let reviewersForArea = config.areaReviewers.get(label) || []
+        reviewersForArea = reviewersForArea.concat(config.areaApprovers.get(label) || [])
+        reviewersForArea.forEach(reviewer => reviewers.add(reviewer))
     })
     reviewers.delete(author)
     return Array.from(reviewers)
@@ -33,9 +31,9 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             pull_number: pullNumber,
             reviewers: reviewers,
         });
-    } catch(err) {
-        console.log(`cannot assign reviewers: ${err}`)
-        throw err
+    } catch(error) {
+        console.log(`cannot assign reviewers: ${error}`)
+        throw error
     }
 }
 

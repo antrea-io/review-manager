@@ -8,11 +8,3 @@ reviewers:
   area/area-2:
   - bob
   - john
-
-approvers:
-  area/area-1:
-  - alice
-  - bob
-  area/area-2:
-  - bob
-  - john

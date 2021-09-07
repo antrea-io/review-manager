@@ -17,31 +17,36 @@ async function getApprovals(owner, repo, pullNumber, token) {
                 }
             });
         }
-    } catch(err) {
-        console.log(`cannot determine approvals: ${err}`)
-        throw err
+    } catch(error) {
+        console.log(`cannot determine approvals: ${error}`)
+        throw error
     }
 
     return approvals
 }
 
-let canBeMerged = function(
-    labels,
-    approvals,
-    areaOwners,
-    minApprovingReviewsTotal,
-    minApprovingReviewsPerArea,
-) {
+let canBeMerged = function(labels, approvals, config) {
+    var hasMaintainerApproval = false
+    config.maintainers.forEach(maintainer => {
+        if (approvals.has(maintainer)) {
+            hasMaintainerApproval = true
+        }
+    })
+    if (hasMaintainerApproval && config.succeedIfMaintainerApproves) {
+        console.log(`PR was approved by maintainer`)
+        return true
+    }
+
     const approvalsByArea = new Map()
     labels.forEach(label => {
-        const owners = areaOwners.get(label)
-        if (owners === undefined) {
+        const approversForArea = config.areaApprovers.get(label)
+        if (approversForArea === undefined) {
             return
         }
         let approvalsForArea = []
-        owners.forEach(owner => {
-            if (approvals.has(owner)) {
-                approvalsForArea.push(owner)
+        approversForArea.forEach(approver => {
+            if (approvals.has(approver)) {
+                approvalsForArea.push(approver)
             }
         })
         approvalsByArea.set(label, approvalsForArea)
@@ -52,19 +57,19 @@ let canBeMerged = function(
 
     var result = true
 
-    if (approvals.size < minApprovingReviewsTotal) {
-        console.log(`Insufficient number of approvals: expected ${minApprovingReviewsTotal} but got ${approvals.size}`)
+    if (approvals.size < config.minApprovingReviewsTotal) {
+        console.log(`Insufficient number of approvals: expected ${config.minApprovingReviewsTotal} but got ${approvals.size}`)
         result = false
     }
 
-    if (approvalsByArea.size < 1) {
+    if (approvalsByArea.size < 1 && config.failIfNoAreaLabel) {
         console.log(`At least one area label is required for a pull request`)
         result = false
     }
 
     approvalsByArea.forEach(function(approvals, area) {
-        if (approvals.length < minApprovingReviewsPerArea) {
-            console.log(`Not enough approvals for area ${area}: expected ${minApprovingReviewsPerArea} but got ${approvals.size}`)
+        if (approvals.length < config.minApprovingReviewsPerArea) {
+            console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.size}`)
             result = false
         }
     })

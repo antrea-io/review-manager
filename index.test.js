@@ -2,36 +2,106 @@ const inputs = require('./inputs');
 const reviewers = require('./reviewers');
 const approval = require('./approval');
 
-test('parse owners', async () => {
-    const areaOwners = inputs.parseOwners('testdata/owners.yml');
-    expect(areaOwners.get('area/area-1')).toEqual(expect.arrayContaining(['alice', 'bob']));
-});
+describe ('Pasrse Owners', () => {
+    test('all keys', async () => {
+        const {maintainers, areaReviewers, areaApprovers} = inputs.parseOwners('testdata/owners.yml');
+        expect(maintainers).toEqual(new Set(['ted']));
+        expect(areaReviewers.get('area/area-1')).toEqual(expect.arrayContaining(['alice', 'bob']));
+        expect(areaReviewers.get('area/area-2')).toEqual(expect.arrayContaining(['bob', 'john']));
+        expect(areaApprovers.get('area/area-1')).toEqual(expect.arrayContaining(['alice', 'bob']));
+        expect(areaApprovers.get('area/area-2')).toEqual(expect.arrayContaining(['bob', 'john']));
+    })
 
-test('compute reviewers', async () => {
-    const labels = ['documentation']
-    const owners = [['documentation', ['alice', 'bob']], ['foo', ['bob', 'mike']]]
-    const areaOwners = new Map(owners)
-    const reviewersSet = reviewers.computeReviewers(labels, 'alice', areaOwners)
-    expect(reviewersSet).toEqual(['bob'])
-});
+    test('missing approvers', async () => {
+        const {maintainers, areaReviewers, areaApprovers} = inputs.parseOwners('testdata/owners-without-approvers.yml');
+        expect(maintainers).toEqual(new Set(['ted']));
+        expect(areaReviewers.get('area/area-1')).toEqual(expect.arrayContaining(['alice', 'bob']));
+        expect(areaReviewers.get('area/area-2')).toEqual(expect.arrayContaining(['bob', 'john']));
+        expect(areaApprovers).toEqual(new Map())
+    })
 
-describe('PR can be merged', () => {
+    test('missing maintainers', async () => {
+        const {maintainers, areaReviewers, areaApprovers} = inputs.parseOwners('testdata/owners-without-maintainers.yml');
+        expect(maintainers).toEqual(new Set());
+        expect(areaReviewers.get('area/area-1')).toEqual(expect.arrayContaining(['alice', 'bob']));
+        expect(areaReviewers.get('area/area-2')).toEqual(expect.arrayContaining(['bob', 'john']));
+        expect(areaApprovers.get('area/area-1')).toEqual(expect.arrayContaining(['alice', 'bob']));
+        expect(areaApprovers.get('area/area-2')).toEqual(expect.arrayContaining(['bob', 'john']));
+    })
+})
+
+describe('Compute reviewers', () => {
     let labels
-    let owners
-    let areaOwners
-    let minApprovingReviewsTotal
-    let minApprovingReviewsPerArea
+    let author
+    let areaReviewers
+    let areaApprovers
 
-    function canBeMerged(approvals) {
-        return approval.canBeMerged(labels, approvals, areaOwners, minApprovingReviewsTotal, minApprovingReviewsPerArea)
+    function computeReviewers() {
+        const config = {
+            areaReviewers: new Map(areaReviewers),
+            areaApprovers: new Map(areaApprovers),
+        }
+        return reviewers.computeReviewers(labels, author, config)
     }
 
     beforeAll(() => {
         labels = ['documentation']
-        owners = [['documentation', ['alice', 'bob']], ['foo', ['bob', 'mike', 'joe']]]
-        areaOwners = new Map(owners)
+        author = "alice"
+        areaReviewers = []
+        areaApprovers = []
+    })
+
+    test('author removal', async () => {
+        areaReviewers = [['documentation', ['alice', 'bob']]]
+        expect(computeReviewers()).toEqual(['bob'])
+    })
+
+    test('combine 1', async() => {
+        author = "clara"
+        areaReviewers = [['documentation', ['alice', 'bob']]]
+        areaApprovers = [['documentation', ['alice']]]
+        expect(computeReviewers()).toEqual(expect.arrayContaining(['alice', 'bob']))
+    })
+
+    test('combine 2', async() => {
+        author = "clara"
+        areaReviewers = [['documentation', ['alice']]]
+        areaApprovers = [['documentation', ['alice', 'bob']]]
+        expect(computeReviewers()).toEqual(expect.arrayContaining(['alice', 'bob']))
+    })
+});
+
+describe('PR can be merged', () => {
+    let labels
+    let approvers
+    let maintainers
+    let minApprovingReviewsTotal
+    let minApprovingReviewsPerArea
+    let areaApprovers
+    let failIfNoAreaLabel
+    let succeedIfMaintainerApproves
+
+    function canBeMerged(approvals) {
+        const config = {
+            minApprovingReviewsTotal: minApprovingReviewsTotal,
+            minApprovingReviewsPerArea: minApprovingReviewsPerArea,
+            maintainers: maintainers,
+            areaApprovers: areaApprovers,
+            failIfNoAreaLabel: failIfNoAreaLabel,
+            succeedIfMaintainerApproves: succeedIfMaintainerApproves,
+        }
+        return approval.canBeMerged(labels, approvals, config)
+    }
+
+    beforeAll(() => {
+        labels = ['documentation']
+        approvers = [['documentation', ['alice', 'bob']], ['foo', ['bob', 'mike', 'joe']]]
+        areaApprovers = new Map(approvers)
+        maintainers = new Set()
         minApprovingReviewsTotal = 2
         minApprovingReviewsPerArea = 1
+        failIfNoAreaLabel = true
+        succeedIfMaintainerApproves = false
     })
 
     test('no approval', async () => {
@@ -56,6 +126,13 @@ describe('PR can be merged', () => {
         expect(canBeMerged(approvals)).toBeFalsy()
     })
 
+    test('accept no area label', async () => {
+        labels = []
+        failIfNoAreaLabel = false
+        const approvals = new Set(['alice', 'joe'])
+        expect(canBeMerged(approvals)).toBeTruthy()
+    })
+
     test('approved documentation', async () => {
         labels = ['documentation']
         const approvals = new Set(['alice', 'joe'])
@@ -71,6 +148,13 @@ describe('PR can be merged', () => {
     test('approved with 2 labels', async () => {
         labels = ['foo', 'documentation']
         const approvals = new Set(['joe', 'alice'])
+        expect(canBeMerged(approvals)).toBeTruthy()
+    })
+
+    test('maintainer bypass', async () => {
+        maintainers = ['alice']
+        succeedIfMaintainerApproves = true
+        const approvals = new Set(['alice'])
         expect(canBeMerged(approvals)).toBeTruthy()
     })
 });

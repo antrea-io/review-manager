@@ -19,9 +19,9 @@ async function addLabel(owner, repo, pullNumber, token, label) {
             issue_number: pullNumber,
             labels: [label],
         });
-    } catch(err) {
-        console.log(`cannot add label: ${err}`)
-        throw err
+    } catch(error) {
+        console.log(`cannot add label: ${error}`)
+        throw error
     }
 }
 
