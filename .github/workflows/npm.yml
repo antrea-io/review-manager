@@ -1,0 +1,23 @@
+name: NPM
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v2
+      with:
+        node-version: '16'
+    - run: npm run lint
+    - run: npm run test
+    - run: |
+        npm run prepare
+        [ -z "$(git status --porcelain=v1 2>/dev/null)" ] || (echo "Run 'npm run prepare' and commit the changes"; exit 1)
