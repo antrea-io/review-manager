@@ -1,8 +1,8 @@
 const github = require('@actions/github');
 
 async function getApprovals(owner, repo, pullNumber, token) {
-    const octokit = github.getOctokit(token)
-    const approvals = new Set()
+    const octokit = github.getOctokit(token);
+    const approvals = new Set();
 
     try {
         for await (const res of octokit.paginate.iterator(octokit.rest.pulls.listReviews, {
@@ -13,69 +13,69 @@ async function getApprovals(owner, repo, pullNumber, token) {
         })) {
             res.data.forEach(review => {
                 if (review.state === 'APPROVED') {
-                    approvals.add(review.user.login)
+                    approvals.add(review.user.login);
                 }
             });
         }
     } catch(error) {
-        console.log(`cannot determine approvals: ${error}`)
-        throw error
+        console.log(`cannot determine approvals: ${error}`);
+        throw error;
     }
 
-    return approvals
+    return approvals;
 }
 
 let canBeMerged = function(labels, approvals, config) {
-    var hasMaintainerApproval = false
+    var hasMaintainerApproval = false;
     config.maintainers.forEach(maintainer => {
         if (approvals.has(maintainer)) {
-            hasMaintainerApproval = true
+            hasMaintainerApproval = true;
         }
-    })
+    });
     if (hasMaintainerApproval && config.succeedIfMaintainerApproves) {
-        console.log(`PR was approved by maintainer`)
-        return true
+        console.log(`PR was approved by maintainer`);
+        return true;
     }
 
-    const approvalsByArea = new Map()
+    const approvalsByArea = new Map();
     labels.forEach(label => {
-        const approversForArea = config.areaApprovers.get(label)
+        const approversForArea = config.areaApprovers.get(label);
         if (approversForArea === undefined) {
-            return
+            return;
         }
-        let approvalsForArea = []
+        let approvalsForArea = [];
         approversForArea.forEach(approver => {
             if (approvals.has(approver)) {
-                approvalsForArea.push(approver)
+                approvalsForArea.push(approver);
             }
-        })
-        approvalsByArea.set(label, approvalsForArea)
-    })
+        });
+        approvalsByArea.set(label, approvalsForArea);
+    });
 
-    console.log(`Approvals: ${Array.from(approvals)}`)
-    console.log(`Approvals by area: ${JSON.stringify(Array.from(approvalsByArea))}`)
+    console.log(`Approvals: ${Array.from(approvals)}`);
+    console.log(`Approvals by area: ${JSON.stringify(Array.from(approvalsByArea))}`);
 
-    var result = true
+    var result = true;
 
     if (approvals.size < config.minApprovingReviewsTotal) {
-        console.log(`Insufficient number of approvals: expected ${config.minApprovingReviewsTotal} but got ${approvals.size}`)
-        result = false
+        console.log(`Insufficient number of approvals: expected ${config.minApprovingReviewsTotal} but got ${approvals.size}`);
+        result = false;
     }
 
     if (approvalsByArea.size < 1 && config.failIfNoAreaLabel) {
-        console.log(`At least one area label is required for a pull request`)
-        result = false
+        console.log(`At least one area label is required for a pull request`);
+        result = false;
     }
 
     approvalsByArea.forEach(function(approvals, area) {
         if (approvals.length < config.minApprovingReviewsPerArea) {
-            console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.size}`)
-            result = false
+            console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.size}`);
+            result = false;
         }
-    })
+    });
 
-    return result
-}
+    return result;
+};
 
 exports.getApprovals = getApprovals;
 exports.canBeMerged = canBeMerged;

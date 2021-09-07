@@ -1,15 +1,15 @@
 const github = require('@actions/github');
 
 let computeReviewers = function(labels, author, config) {
-    const reviewers = new Set()
+    const reviewers = new Set();
     labels.forEach(label => {
-        let reviewersForArea = config.areaReviewers.get(label) || []
-        reviewersForArea = reviewersForArea.concat(config.areaApprovers.get(label) || [])
-        reviewersForArea.forEach(reviewer => reviewers.add(reviewer))
-    })
-    reviewers.delete(author)
-    return Array.from(reviewers)
-}
+        let reviewersForArea = config.areaReviewers.get(label) || [];
+        reviewersForArea = reviewersForArea.concat(config.areaApprovers.get(label) || []);
+        reviewersForArea.forEach(reviewer => reviewers.add(reviewer));
+    });
+    reviewers.delete(author);
+    return Array.from(reviewers);
+};
 
 async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
     // const octokit = github.getOctokit(token, {log: console});
@@ -32,8 +32,8 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             reviewers: reviewers,
         });
     } catch(error) {
-        console.log(`cannot assign reviewers: ${error}`)
-        throw error
+        console.log(`cannot assign reviewers: ${error}`);
+        throw error;
     }
 }
 

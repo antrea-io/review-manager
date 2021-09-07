@@ -20,8 +20,8 @@ async function addLabel(owner, repo, pullNumber, token, label) {
             labels: [label],
         });
     } catch(error) {
-        console.log(`cannot add label: ${error}`)
-        throw error
+        console.log(`cannot add label: ${error}`);
+        throw error;
     }
 }
 
