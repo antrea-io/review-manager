@@ -75,7 +75,7 @@ let canBeMerged = function(labels, approvals, config) {
 
     approvalsByArea.forEach(function(approvals, area) {
         if (approvals.length < config.minApprovingReviewsPerArea) {
-            console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.size}`);
+            console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.length}`);
             result = false;
         }
     });
