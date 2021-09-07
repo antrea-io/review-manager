@@ -21,4 +21,5 @@ jobs:
     - run: npm run test
     - run: |
         npm run prepare
+        git diff
         [ -z "$(git status --porcelain=v1 2>/dev/null)" ] || (echo "Run 'npm run prepare' and commit the changes"; exit 1)
