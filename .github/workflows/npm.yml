@@ -16,9 +16,10 @@ jobs:
     - uses: actions/setup-node@v2
       with:
         node-version: '16'
-    - run: npm install
+    - run: npm ci # do not use 'npm install' which can cause small mutations to package-lock.json
     - run: npm run lint
     - run: npm run test
     - run: |
         npm run prepare
+        git diff
         [ -z "$(git status --porcelain=v1 2>/dev/null)" ] || (echo "Run 'npm run prepare' and commit the changes"; exit 1)
