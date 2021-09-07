@@ -34,7 +34,7 @@ inputs:
   ignore_if_not_labelled_with:
     description: 'Ignore all PRs not labelled with this label'
     required: false
-    default: false
+    default: ''
 runs:
   using: 'node12'
   main: 'dist/index.js'
