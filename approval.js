@@ -1,4 +1,5 @@
 const github = require('@actions/github');
+const owners = require('./owners');
 
 async function getApprovals(owner, repo, pullNumber, token) {
     const octokit = github.getOctokit(token);
@@ -40,10 +41,7 @@ let canBeMerged = function(labels, approvals, config) {
     // Maps area label to [<num approvals for area>, <max num approvers for area>]
     const approvalsByArea = new Map();
     labels.forEach(label => {
-        const approversForArea = config.areaApprovers.get(label);
-        if (approversForArea === undefined) {
-            return;
-        }
+        const approversForArea = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
         let approvalsForArea = [];
         approversForArea.forEach(approver => {
             if (approvals.has(approver)) {

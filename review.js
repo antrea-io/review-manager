@@ -1,11 +1,13 @@
 const github = require('@actions/github');
+const owners = require('./owners');
 
 let computeReviewers = function(labels, author, config) {
     const reviewers = new Set();
     labels.forEach(label => {
-        let reviewersForArea = config.areaReviewers.get(label) || [];
-        reviewersForArea = reviewersForArea.concat(config.areaApprovers.get(label) || []);
-        reviewersForArea.forEach(reviewer => reviewers.add(reviewer));
+        const r1 = owners.labelToOwners(label, config.areaReviewers, config.areaReviewersRegexList);
+        const r2 = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
+        r1.forEach(reviewer => reviewers.add(reviewer));
+        r2.forEach(reviewer => reviewers.add(reviewer));
     });
     reviewers.delete(author);
     return Array.from(reviewers);

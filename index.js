@@ -1,9 +1,10 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
 const inputs = require('./inputs');
-const reviewers = require('./reviewers');
+const review = require('./review');
 const approval = require('./approval');
 const label = require('./label');
+const owners = require('./owners');
 
 let extractLabelNames = function(labels) {
     return labels.map(label => label.name);
@@ -16,12 +17,23 @@ let getConfig = function() {
     console.log(`Maintainers:`, maintainers);
     console.log(`Area reviewers:`, areaReviewers);
     console.log(`Area approvers:`, areaApprovers);
+
+    const supportLabelRegex = core.getInput('support_label_regex');
+    let areaReviewersRegexList = [];
+    let areaApproversRegexList = [];
+    if (supportLabelRegex) {
+        areaReviewersRegexList = owners.buildRegexList(areaReviewers);
+        areaApproversRegexList = owners.buildRegexList(areaApprovers);
+    }
+
     return {
         minApprovingReviewsTotal: core.getInput('min_approving_reviews_total'),
         minApprovingReviewsPerArea: core.getInput('min_approving_reviews_per_area'),
         maintainers: maintainers,
         areaReviewers: areaReviewers,
         areaApprovers: areaApprovers,
+        areaReviewersRegexList: areaReviewersRegexList,
+        areaApproversRegexList: areaApproversRegexList,
         failIfMissingApprovingReviews: core.getInput('fail_if_missing_approving_reviews'),
         labelOnSuccess: core.getInput('label_on_success'),
         failIfNoAreaLabel: core.getInput('fail_if_no_area_label'),
@@ -54,14 +66,14 @@ async function run() {
             return;
         }
 
-        const reviewersList = reviewers.computeReviewers(
+        const reviewersList = review.computeReviewers(
             labels,
             pullRequest.user.login,
             config,
         );
         console.log(`Assigning reviewers:`, reviewersList);
         const pullNumber = pullRequest.number;
-        await reviewers.requireReviewers(owner, repo, pullNumber, token, reviewersList);
+        await review.requireReviewers(owner, repo, pullNumber, token, reviewersList);
 
         const approvals = await approval.getApprovals(owner, repo, pullNumber, token);
         console.log(`Currrent approvals: ${approvals}`);

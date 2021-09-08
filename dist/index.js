@@ -5,6 +5,7 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 const github = __nccwpck_require__(5438);
+const owners = __nccwpck_require__(4245);
 
 async function getApprovals(owner, repo, pullNumber, token) {
     const octokit = github.getOctokit(token);
@@ -46,10 +47,7 @@ let canBeMerged = function(labels, approvals, config) {
     // Maps area label to [<num approvals for area>, <max num approvers for area>]
     const approvalsByArea = new Map();
     labels.forEach(label => {
-        const approversForArea = config.areaApprovers.get(label);
-        if (approversForArea === undefined) {
-            return;
-        }
+        const approversForArea = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
         let approvalsForArea = [];
         approversForArea.forEach(approver => {
             if (approvals.has(approver)) {
@@ -10448,17 +10446,51 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
-/***/ 1385:
+/***/ 4245:
+/***/ ((__unused_webpack_module, exports) => {
+
+let buildRegexList = function(areaOwners) {
+    let list = [];
+    areaOwners.forEach(function(owners, label) {
+        list.push([new RegExp(label), owners]);
+    });
+    return list;
+};
+
+let labelToOwners = function(label, mapping, regexList) {
+    const ownersForExactLabel = mapping.get(label);
+    if (ownersForExactLabel !== undefined) {
+        return ownersForExactLabel;
+    }
+    for (let i = 0; i < regexList.length; i++) {
+        const re = regexList[i][0];
+        const ownersForRegexLabel = regexList[i][1];
+        if (re.test(label)) {
+            return ownersForRegexLabel;
+        }
+    }
+    return [];
+};
+
+exports.labelToOwners = labelToOwners;
+exports.buildRegexList = buildRegexList;
+
+
+/***/ }),
+
+/***/ 302:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 const github = __nccwpck_require__(5438);
+const owners = __nccwpck_require__(4245);
 
 let computeReviewers = function(labels, author, config) {
     const reviewers = new Set();
     labels.forEach(label => {
-        let reviewersForArea = config.areaReviewers.get(label) || [];
-        reviewersForArea = reviewersForArea.concat(config.areaApprovers.get(label) || []);
-        reviewersForArea.forEach(reviewer => reviewers.add(reviewer));
+        const r1 = owners.labelToOwners(label, config.areaReviewers, config.areaReviewersRegexList);
+        const r2 = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
+        r1.forEach(reviewer => reviewers.add(reviewer));
+        r2.forEach(reviewer => reviewers.add(reviewer));
     });
     reviewers.delete(author);
     return Array.from(reviewers);
@@ -10652,9 +10684,10 @@ var __webpack_exports__ = {};
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const inputs = __nccwpck_require__(8896);
-const reviewers = __nccwpck_require__(1385);
+const review = __nccwpck_require__(302);
 const approval = __nccwpck_require__(7187);
 const label = __nccwpck_require__(8188);
+const owners = __nccwpck_require__(4245);
 
 let extractLabelNames = function(labels) {
     return labels.map(label => label.name);
@@ -10667,12 +10700,23 @@ let getConfig = function() {
     console.log(`Maintainers:`, maintainers);
     console.log(`Area reviewers:`, areaReviewers);
     console.log(`Area approvers:`, areaApprovers);
+
+    const supportLabelRegex = core.getInput('support_label_regex');
+    let areaReviewersRegexList = [];
+    let areaApproversRegexList = [];
+    if (supportLabelRegex) {
+        areaReviewersRegexList = owners.buildRegexList(areaReviewers);
+        areaApproversRegexList = owners.buildRegexList(areaApprovers);
+    }
+
     return {
         minApprovingReviewsTotal: core.getInput('min_approving_reviews_total'),
         minApprovingReviewsPerArea: core.getInput('min_approving_reviews_per_area'),
         maintainers: maintainers,
         areaReviewers: areaReviewers,
         areaApprovers: areaApprovers,
+        areaReviewersRegexList: areaReviewersRegexList,
+        areaApproversRegexList: areaApproversRegexList,
         failIfMissingApprovingReviews: core.getInput('fail_if_missing_approving_reviews'),
         labelOnSuccess: core.getInput('label_on_success'),
         failIfNoAreaLabel: core.getInput('fail_if_no_area_label'),
@@ -10705,14 +10749,14 @@ async function run() {
             return;
         }
 
-        const reviewersList = reviewers.computeReviewers(
+        const reviewersList = review.computeReviewers(
             labels,
             pullRequest.user.login,
             config,
         );
         console.log(`Assigning reviewers:`, reviewersList);
         const pullNumber = pullRequest.number;
-        await reviewers.requireReviewers(owner, repo, pullNumber, token, reviewersList);
+        await review.requireReviewers(owner, repo, pullNumber, token, reviewersList);
 
         const approvals = await approval.getApprovals(owner, repo, pullNumber, token);
         console.log(`Currrent approvals: ${approvals}`);

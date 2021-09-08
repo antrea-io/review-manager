@@ -39,6 +39,10 @@ inputs:
     description: 'Fail if there are not enough available reviewers (< min_approving_reviews_per_area) defined for a given area'
     required: false
     default: false
+  support_label_regex:
+    description: 'Support regexes for labels in ownership file'
+    required: false
+    default: true
 runs:
   using: 'node12'
   main: 'dist/index.js'

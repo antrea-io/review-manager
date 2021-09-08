@@ -1,6 +1,7 @@
 const inputs = require('./inputs');
-const reviewers = require('./reviewers');
+const review = require('./review');
 const approval = require('./approval');
+const owners = require('./owners');
 
 describe ('Pasrse Owners', () => {
     test('all keys', async () => {
@@ -33,41 +34,60 @@ describe ('Pasrse Owners', () => {
 describe('Compute reviewers', () => {
     let labels;
     let author;
-    let areaReviewers;
-    let areaApprovers;
+    let reviewers;
+    let approvers;
 
     function computeReviewers() {
+        const areaReviewers = new Map(reviewers);
+        const areaApprovers = new Map(approvers);
         const config = {
-            areaReviewers: new Map(areaReviewers),
-            areaApprovers: new Map(areaApprovers),
+            areaReviewers: areaReviewers,
+            areaApprovers: areaApprovers,
+            areaReviewersRegexList: owners.buildRegexList(areaReviewers),
+            areaApproversRegexList: owners.buildRegexList(areaApprovers),
         };
-        return reviewers.computeReviewers(labels, author, config);
+        return review.computeReviewers(labels, author, config);
     }
 
     beforeEach(() => {
         labels = ['documentation'];
         author = "alice";
-        areaReviewers = [];
-        areaApprovers = [];
+        reviewers = [];
+        approvers = [];
     });
 
     test('author removal', async () => {
-        areaReviewers = [['documentation', ['alice', 'bob']]];
+        reviewers = [['documentation', ['alice', 'bob']]];
         expect(computeReviewers()).toEqual(['bob']);
+    });
+
+    test('not a known label', async() => {
+        reviewers = [['not-documentation', ['alice', 'bob']]];
+        expect(computeReviewers()).toEqual([]);
     });
 
     test('combine 1', async() => {
         author = "clara";
-        areaReviewers = [['documentation', ['alice', 'bob']]];
-        areaApprovers = [['documentation', ['alice']]];
+        reviewers = [['documentation', ['alice', 'bob']]];
+        approvers = [['documentation', ['alice']]];
         expect(computeReviewers()).toEqual(expect.arrayContaining(['alice', 'bob']));
     });
 
     test('combine 2', async() => {
         author = "clara";
-        areaReviewers = [['documentation', ['alice']]];
-        areaApprovers = [['documentation', ['alice', 'bob']]];
+        reviewers = [['documentation', ['alice']]];
+        approvers = [['documentation', ['alice', 'bob']]];
         expect(computeReviewers()).toEqual(expect.arrayContaining(['alice', 'bob']));
+    });
+
+    test('regex', async() => {
+        reviewers = [['doc*', ['alice', 'bob']]];
+        expect(computeReviewers()).toEqual(['bob']);
+    });
+
+    test('regex precedence', async() => {
+        reviewers = [['documentation', ['mike']], ['doc*', ['alice', 'bob']]];
+        expect(computeReviewers()).toEqual(['mike']);
     });
 });
 
@@ -82,11 +102,13 @@ describe('PR can be merged', () => {
     let failIfNotEnoughAvailableApproversPerArea;
 
     function canBeMerged(approvals) {
+        const areaApprovers = new Map(approvers);
         const config = {
             minApprovingReviewsTotal: minApprovingReviewsTotal,
             minApprovingReviewsPerArea: minApprovingReviewsPerArea,
             maintainers: maintainers,
-            areaApprovers: new Map(approvers),
+            areaApprovers: areaApprovers,
+            areaApproversRegexList: owners.buildRegexList(areaApprovers),
             failIfNoAreaLabel: failIfNoAreaLabel,
             succeedIfMaintainerApproves: succeedIfMaintainerApproves,
             failIfNotEnoughAvailableApproversPerArea: failIfNotEnoughAvailableApproversPerArea,
@@ -95,6 +117,7 @@ describe('PR can be merged', () => {
     }
 
     beforeAll(() => {
+        // silence all console logs, can be commented-out if needed for debugging
         console.log = jest.fn();
         console.warn = jest.fn();
     });
@@ -181,6 +204,19 @@ describe('PR can be merged', () => {
         failIfNotEnoughAvailableApproversPerArea = true;
         approvers = [['documentation', []]];
         const approvals = new Set(['alice', 'bob']);
+        expect(canBeMerged(approvals)).toBeFalsy();
+    });
+
+    test('regex', async() => {
+        approvers = [['doc*', ['alice', 'bob']]];
+        const approvals = new Set(['alice', 'bob']);
+        expect(canBeMerged(approvals)).toBeTruthy();
+    });
+
+    test('regex precedence', async() => {
+        approvers = [['documentation', ['mike']], ['doc*', ['alice', 'bob']]];
+        const approvals = new Set(['alice', 'bob']);
+        // exact match takes precedence, review from mike is needed
         expect(canBeMerged(approvals)).toBeFalsy();
     });
 });
