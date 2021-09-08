@@ -43,6 +43,7 @@ describe('Compute reviewers', () => {
         const areaReviewers = new Map(reviewers);
         const areaApprovers = new Map(approvers);
         const config = {
+            minApprovingReviewsPerArea: 1,
             maintainers: maintainers,
             areaReviewers: areaReviewers,
             areaApprovers: areaApprovers,

@@ -44,8 +44,8 @@ let canBeMerged = function(labels, approvals, config) {
         const reviewersForArea = owners.labelToOwners(label, config.areaReviewers, config.areaReviewersRegexList);
         let approversForArea = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
 
-        if (reviewersForArea.length > 0 && approversForArea.length === 0 && config.defaultToMaintainers) {
-            console.log(`There are reviewers but no approvers for label ${label}, using maintainers as requested`);
+        if (reviewersForArea.length > 0 && approversForArea.length < config.minApprovingReviewsPerArea && config.defaultToMaintainers) {
+            console.log(`There are reviewers but not enough approvers for label ${label}, using maintainers as requested`);
             config.maintainers.forEach(maintainer => approversForArea.push(maintainer));
         }
 
