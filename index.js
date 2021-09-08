@@ -40,6 +40,7 @@ let getConfig = function() {
         succeedIfMaintainerApproves: core.getInput('succeed_if_maintainer_approves'),
         ignoreIfNotLabelledWith: core.getInput('ignore_if_not_labelled_with'),
         failIfNotEnoughAvailableApproversPerArea: core.getInput('fail_if_not_enough_available_approvers_for_area'),
+        defaultToMaintainers: core.getInput('default_to_maintainers'),
    };
 };
 

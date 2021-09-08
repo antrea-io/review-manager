@@ -8,6 +8,10 @@ let computeReviewers = function(labels, author, config) {
         const r2 = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
         r1.forEach(reviewer => reviewers.add(reviewer));
         r2.forEach(reviewer => reviewers.add(reviewer));
+        if (r1.length > 0 && r2.length === 0 && config.defaultToMaintainers) {
+            console.log(`There are reviewers but no approvers for label ${label}, using maintainers as requested`);
+            config.maintainers.forEach(maintainer => reviewers.add(maintainer));
+        }
     });
     reviewers.delete(author);
     return Array.from(reviewers);

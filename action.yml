@@ -43,6 +43,10 @@ inputs:
     description: 'Support regexes for labels in ownership file'
     required: false
     default: true
+  default_to_maintainers:
+    description: 'If an area label has reviewers but no approvers, maintainers are used as approvers'
+    required: false
+    default: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

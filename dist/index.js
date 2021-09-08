@@ -47,7 +47,14 @@ let canBeMerged = function(labels, approvals, config) {
     // Maps area label to [<num approvals for area>, <max num approvers for area>]
     const approvalsByArea = new Map();
     labels.forEach(label => {
-        const approversForArea = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
+        const reviewersForArea = owners.labelToOwners(label, config.areaReviewers, config.areaReviewersRegexList);
+        let approversForArea = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
+
+        if (reviewersForArea.length > 0 && approversForArea.length === 0 && config.defaultToMaintainers) {
+            console.log(`There are reviewers but no approvers for label ${label}, using maintainers as requested`);
+            config.maintainers.forEach(maintainer => approversForArea.push(maintainer));
+        }
+
         let approvalsForArea = [];
         approversForArea.forEach(approver => {
             if (approvals.has(approver)) {
@@ -10491,6 +10498,10 @@ let computeReviewers = function(labels, author, config) {
         const r2 = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
         r1.forEach(reviewer => reviewers.add(reviewer));
         r2.forEach(reviewer => reviewers.add(reviewer));
+        if (r1.length > 0 && r2.length === 0 && config.defaultToMaintainers) {
+            console.log(`There are reviewers but no approvers for label ${label}, using maintainers as requested`);
+            config.maintainers.forEach(maintainer => reviewers.add(maintainer));
+        }
     });
     reviewers.delete(author);
     return Array.from(reviewers);
@@ -10723,6 +10734,7 @@ let getConfig = function() {
         succeedIfMaintainerApproves: core.getInput('succeed_if_maintainer_approves'),
         ignoreIfNotLabelledWith: core.getInput('ignore_if_not_labelled_with'),
         failIfNotEnoughAvailableApproversPerArea: core.getInput('fail_if_not_enough_available_approvers_for_area'),
+        defaultToMaintainers: core.getInput('default_to_maintainers'),
    };
 };
 

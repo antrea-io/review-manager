@@ -34,17 +34,21 @@ describe ('Pasrse Owners', () => {
 describe('Compute reviewers', () => {
     let labels;
     let author;
+    let maintainers;
     let reviewers;
     let approvers;
+    let defaultToMaintainers;
 
     function computeReviewers() {
         const areaReviewers = new Map(reviewers);
         const areaApprovers = new Map(approvers);
         const config = {
+            maintainers: maintainers,
             areaReviewers: areaReviewers,
             areaApprovers: areaApprovers,
             areaReviewersRegexList: owners.buildRegexList(areaReviewers),
             areaApproversRegexList: owners.buildRegexList(areaApprovers),
+            defaultToMaintainers: defaultToMaintainers,
         };
         return review.computeReviewers(labels, author, config);
     }
@@ -52,8 +56,10 @@ describe('Compute reviewers', () => {
     beforeEach(() => {
         labels = ['documentation'];
         author = "alice";
+        maintainers = new Set(['alice']);
         reviewers = [];
         approvers = [];
+        defaultToMaintainers = false;
     });
 
     test('author removal', async () => {
@@ -89,29 +95,47 @@ describe('Compute reviewers', () => {
         reviewers = [['documentation', ['mike']], ['doc*', ['alice', 'bob']]];
         expect(computeReviewers()).toEqual(['mike']);
     });
+
+    test('default to maintainers - default', async() => {
+        reviewers = [['documentation', ['bob']]];
+        expect(computeReviewers()).toEqual(['bob']);
+    });
+
+    test('default to maintainers - true', async() => {
+        defaultToMaintainers = true;
+        maintainers = new Set(['mike']);
+        reviewers = [['documentation', ['bob']]];
+        expect(computeReviewers()).toEqual(expect.arrayContaining(['bob', 'mike']));
+    });
 });
 
 describe('PR can be merged', () => {
     let labels;
-    let approvers;
     let maintainers;
+    let reviewers;
+    let approvers;
     let minApprovingReviewsTotal;
     let minApprovingReviewsPerArea;
     let failIfNoAreaLabel;
     let succeedIfMaintainerApproves;
     let failIfNotEnoughAvailableApproversPerArea;
+    let defaultToMaintainers;
 
     function canBeMerged(approvals) {
+        const areaReviewers = new Map(reviewers);
         const areaApprovers = new Map(approvers);
         const config = {
             minApprovingReviewsTotal: minApprovingReviewsTotal,
             minApprovingReviewsPerArea: minApprovingReviewsPerArea,
-            maintainers: maintainers,
+            maintainers: new Set(maintainers),
+            areaReviewers: areaReviewers,
             areaApprovers: areaApprovers,
+            areaReviewersRegexList: owners.buildRegexList(areaReviewers),
             areaApproversRegexList: owners.buildRegexList(areaApprovers),
             failIfNoAreaLabel: failIfNoAreaLabel,
             succeedIfMaintainerApproves: succeedIfMaintainerApproves,
             failIfNotEnoughAvailableApproversPerArea: failIfNotEnoughAvailableApproversPerArea,
+            defaultToMaintainers: defaultToMaintainers,
         };
         return approval.canBeMerged(labels, approvals, config);
     }
@@ -124,8 +148,9 @@ describe('PR can be merged', () => {
 
     beforeEach(() => {
         labels = ['documentation'];
+        reviewers = [];
         approvers = [['documentation', ['alice', 'bob']], ['foo', ['bob', 'mike', 'joe']]];
-        maintainers = new Set();
+        maintainers = [];
         minApprovingReviewsTotal = 2;
         minApprovingReviewsPerArea = 1;
         failIfNoAreaLabel = true;
@@ -218,5 +243,24 @@ describe('PR can be merged', () => {
         const approvals = new Set(['alice', 'bob']);
         // exact match takes precedence, review from mike is needed
         expect(canBeMerged(approvals)).toBeFalsy();
+    });
+
+    test('default to maintainers - default', async() => {
+        maintainers = ['alice', 'mike'];
+        failIfNotEnoughAvailableApproversPerArea = true;
+        reviewers = [['documentation', ['bob']]];
+        approvers = [];
+        const approvals = new Set(['alice', 'mike']);
+        expect(canBeMerged(approvals)).toBeFalsy();
+    });
+
+    test('default to maintainers - true', async() => {
+        maintainers = ['alice', 'mike'];
+        failIfNotEnoughAvailableApproversPerArea = true;
+        defaultToMaintainers = true;
+        reviewers = [['documentation', ['bob']]];
+        approvers = [];
+        const approvals = new Set(['alice', 'mike']);
+        expect(canBeMerged(approvals)).toBeTruthy();
     });
 });
