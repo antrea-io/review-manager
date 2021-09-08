@@ -35,6 +35,10 @@ inputs:
     description: 'Ignore all PRs not labelled with this label'
     required: false
     default: ''
+  fail_if_not_enough_available_approvers_for_area:
+    description: 'Fail if there are not enough available reviewers (< min_approving_reviews_per_area) defined for a given area'
+    required: false
+    default: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

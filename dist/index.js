@@ -43,6 +43,7 @@ let canBeMerged = function(labels, approvals, config) {
         return true;
     }
 
+    // Maps area label to [<num approvals for area>, <max num approvers for area>]
     const approvalsByArea = new Map();
     labels.forEach(label => {
         const approversForArea = config.areaApprovers.get(label);
@@ -55,7 +56,7 @@ let canBeMerged = function(labels, approvals, config) {
                 approvalsForArea.push(approver);
             }
         });
-        approvalsByArea.set(label, approvalsForArea);
+        approvalsByArea.set(label, [approvalsForArea.length, approversForArea.length]);
     });
 
     console.log(`Approvals: ${Array.from(approvals)}`);
@@ -74,9 +75,16 @@ let canBeMerged = function(labels, approvals, config) {
     }
 
     approvalsByArea.forEach(function(approvals, area) {
-        if (approvals.length < config.minApprovingReviewsPerArea) {
-            console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.length}`);
-            result = false;
+        const numApprovals = approvals[0];
+        const maxApprovers = approvals[1];
+        if (maxApprovers < config.minApprovingReviewsPerArea) {
+            console.warn(`Area label ${area} does not have enough approvers to satisfy min requirement`);
+        }
+        if (numApprovals < config.minApprovingReviewsPerArea) {
+            if (config.failIfNotEnoughAvailableApproversPerArea || numApprovals < maxApprovers) {
+                console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.length}`);
+                result = false;
+            }
         }
     });
 
@@ -10670,6 +10678,7 @@ let getConfig = function() {
         failIfNoAreaLabel: core.getInput('fail_if_no_area_label'),
         succeedIfMaintainerApproves: core.getInput('succeed_if_maintainer_approves'),
         ignoreIfNotLabelledWith: core.getInput('ignore_if_not_labelled_with'),
+        failIfNotEnoughAvailableApproversPerArea: core.getInput('fail_if_not_enough_available_approvers_for_area'),
    };
 };
 

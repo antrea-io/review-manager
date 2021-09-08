@@ -44,7 +44,7 @@ describe('Compute reviewers', () => {
         return reviewers.computeReviewers(labels, author, config);
     }
 
-    beforeAll(() => {
+    beforeEach(() => {
         labels = ['documentation'];
         author = "alice";
         areaReviewers = [];
@@ -77,31 +77,37 @@ describe('PR can be merged', () => {
     let maintainers;
     let minApprovingReviewsTotal;
     let minApprovingReviewsPerArea;
-    let areaApprovers;
     let failIfNoAreaLabel;
     let succeedIfMaintainerApproves;
+    let failIfNotEnoughAvailableApproversPerArea;
 
     function canBeMerged(approvals) {
         const config = {
             minApprovingReviewsTotal: minApprovingReviewsTotal,
             minApprovingReviewsPerArea: minApprovingReviewsPerArea,
             maintainers: maintainers,
-            areaApprovers: areaApprovers,
+            areaApprovers: new Map(approvers),
             failIfNoAreaLabel: failIfNoAreaLabel,
             succeedIfMaintainerApproves: succeedIfMaintainerApproves,
+            failIfNotEnoughAvailableApproversPerArea: failIfNotEnoughAvailableApproversPerArea,
         };
         return approval.canBeMerged(labels, approvals, config);
     }
 
     beforeAll(() => {
+        console.log = jest.fn();
+        console.warn = jest.fn();
+    });
+
+    beforeEach(() => {
         labels = ['documentation'];
         approvers = [['documentation', ['alice', 'bob']], ['foo', ['bob', 'mike', 'joe']]];
-        areaApprovers = new Map(approvers);
         maintainers = new Set();
         minApprovingReviewsTotal = 2;
         minApprovingReviewsPerArea = 1;
         failIfNoAreaLabel = true;
         succeedIfMaintainerApproves = false;
+        failIfNotEnoughAvailableApproversPerArea = false;
     });
 
     test('no approval', async () => {
@@ -156,5 +162,25 @@ describe('PR can be merged', () => {
         succeedIfMaintainerApproves = true;
         const approvals = new Set(['alice']);
         expect(canBeMerged(approvals)).toBeTruthy();
+    });
+
+    test('not enough approvers for area - default', async () => {
+        minApprovingReviewsPerArea = 2;
+        approvers = [['documentation', ['alice']]];
+        const approvals = new Set(['alice', 'bob']);
+        expect(canBeMerged(approvals)).toBeTruthy();
+    });
+
+    test('no approvers for area - default', async () => {
+        approvers = [['documentation', []]];
+        const approvals = new Set(['alice', 'bob']);
+        expect(canBeMerged(approvals)).toBeTruthy();
+    });
+
+    test('not enough approvers for area - fail', async () => {
+        failIfNotEnoughAvailableApproversPerArea = true;
+        approvers = [['documentation', []]];
+        const approvals = new Set(['alice', 'bob']);
+        expect(canBeMerged(approvals)).toBeFalsy();
     });
 });
