@@ -1,4 +1,4 @@
-# review-manager Github Action
+# `@antrea-io/review-manager` Github Action
 
 The purpose of this Github action is 2-fold:
 - provide a simple way to automatically request reviews for PRs from specific
@@ -35,7 +35,7 @@ jobs:
     steps:
     - name: Check-out code
       uses: actions/checkout@v2
-    - uses: antoninbas/review-manager@main
+    - uses: antrea-io/review-manager@v0.1.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         area_ownership_file: 'AREA-OWNERS'

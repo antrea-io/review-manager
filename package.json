@@ -12,14 +12,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/antoninbas/review-manager.git"
+    "url": "git+https://github.com/antrea-io/review-manager.git"
   },
   "author": "",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/antoninbas/review-manager/issues"
+    "url": "https://github.com/antrea-io/review-manager/issues"
   },
-  "homepage": "https://github.com/antoninbas/review-manager#readme",
+  "homepage": "https://github.com/antrea-io/review-manager#readme",
   "dependencies": {
     "@actions/core": "^1.4.0",
     "@actions/github": "^5.0.0",
