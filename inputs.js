@@ -10,7 +10,7 @@ let parseOwners = function(path) {
             areaApprovers: new Map(Object.entries(areaOwners.approvers || {})),
         };
     } catch (error) {
-        console.logs(`cannot parse owners file: ${error}`);
+        console.log(`cannot parse owners file ${path}: ${error}`);
         throw error;
     }
 };
