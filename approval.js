@@ -86,7 +86,7 @@ let canBeMerged = function(labels, author, approvals, config) {
         }
         if (numApprovals < config.minApprovingReviewsPerArea) {
             if (config.failIfNotEnoughAvailableApproversPerArea || numApprovals < maxApprovers) {
-                console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${approvals.length}`);
+                console.log(`Not enough approvals for area ${area}: expected ${config.minApprovingReviewsPerArea} but got ${numApprovals}`);
                 result = false;
             }
         }
