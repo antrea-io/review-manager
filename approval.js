@@ -26,7 +26,7 @@ async function getApprovals(owner, repo, pullNumber, token) {
     return approvals;
 }
 
-let canBeMerged = function(labels, approvals, config) {
+let canBeMerged = function(labels, author, approvals, config) {
     var hasMaintainerApproval = false;
     config.maintainers.forEach(maintainer => {
         if (approvals.has(maintainer)) {
@@ -41,12 +41,17 @@ let canBeMerged = function(labels, approvals, config) {
     // Maps area label to [<num approvals for area>, <max num approvers for area>]
     const approvalsByArea = new Map();
     labels.forEach(label => {
-        const reviewersForArea = owners.labelToOwners(label, config.areaReviewers, config.areaReviewersRegexList);
-        let approversForArea = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
+        const reviewersForArea = owners.labelToOwners(label, author, config.areaReviewers, config.areaReviewersRegexList);
+        let approversForArea = owners.labelToOwners(label, author, config.areaApprovers, config.areaApproversRegexList) || [];
+        const maintainers = config.maintainers.filter(maintainer => maintainer !== author);
 
-        if (reviewersForArea.length > 0 && approversForArea.length < config.minApprovingReviewsPerArea && config.defaultToMaintainers) {
-            console.log(`There are reviewers but not enough approvers for label ${label}, using maintainers as requested`);
-            config.maintainers.forEach(maintainer => approversForArea.push(maintainer));
+        if (reviewersForArea !== undefined && approversForArea.length < config.minApprovingReviewsPerArea && config.requestReviewsFromMaintainersIfNeeded) {
+            console.log(`There are not enough approvers for label ${label}, using maintainers as requested`);
+            maintainers.forEach(maintainer => approversForArea.push(maintainer));
+        }
+
+        if (config.maintainersAreUniversalApprovers) {
+            maintainers.forEach(maintainer => approversForArea.push(maintainer));
         }
 
         let approvalsForArea = [];

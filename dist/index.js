@@ -32,7 +32,7 @@ async function getApprovals(owner, repo, pullNumber, token) {
     return approvals;
 }
 
-let canBeMerged = function(labels, approvals, config) {
+let canBeMerged = function(labels, author, approvals, config) {
     var hasMaintainerApproval = false;
     config.maintainers.forEach(maintainer => {
         if (approvals.has(maintainer)) {
@@ -47,12 +47,17 @@ let canBeMerged = function(labels, approvals, config) {
     // Maps area label to [<num approvals for area>, <max num approvers for area>]
     const approvalsByArea = new Map();
     labels.forEach(label => {
-        const reviewersForArea = owners.labelToOwners(label, config.areaReviewers, config.areaReviewersRegexList);
-        let approversForArea = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
+        const reviewersForArea = owners.labelToOwners(label, author, config.areaReviewers, config.areaReviewersRegexList);
+        let approversForArea = owners.labelToOwners(label, author, config.areaApprovers, config.areaApproversRegexList) || [];
+        const maintainers = config.maintainers.filter(maintainer => maintainer !== author);
 
-        if (reviewersForArea.length > 0 && approversForArea.length < config.minApprovingReviewsPerArea && config.defaultToMaintainers) {
-            console.log(`There are reviewers but not enough approvers for label ${label}, using maintainers as requested`);
-            config.maintainers.forEach(maintainer => approversForArea.push(maintainer));
+        if (reviewersForArea !== undefined && approversForArea.length < config.minApprovingReviewsPerArea && config.requestReviewsFromMaintainersIfNeeded) {
+            console.log(`There are not enough approvers for label ${label}, using maintainers as requested`);
+            maintainers.forEach(maintainer => approversForArea.push(maintainer));
+        }
+
+        if (config.maintainersAreUniversalApprovers) {
+            maintainers.forEach(maintainer => approversForArea.push(maintainer));
         }
 
         let approvalsForArea = [];
@@ -112,7 +117,7 @@ let parseOwners = function(path) {
     try {
         const areaOwners = yaml.load(fs.readFileSync(path, 'utf8'));
         return {
-            maintainers: new Set(areaOwners.maintainers || []),
+            maintainers: areaOwners.maintainers || [],
             areaReviewers: new Map(Object.entries(areaOwners.reviewers || {})),
             areaApprovers: new Map(Object.entries(areaOwners.approvers || {})),
         };
@@ -10464,19 +10469,24 @@ let buildRegexList = function(areaOwners) {
     return list;
 };
 
-let labelToOwners = function(label, mapping, regexList) {
+let labelToOwners = function(label, excludeUser, mapping, regexList) {
+    let owners;
     const ownersForExactLabel = mapping.get(label);
-    if (ownersForExactLabel !== undefined) {
-        return ownersForExactLabel;
-    }
-    for (let i = 0; i < regexList.length; i++) {
-        const re = regexList[i][0];
-        const ownersForRegexLabel = regexList[i][1];
-        if (re.test(label)) {
-            return ownersForRegexLabel;
+    if (ownersForExactLabel !== undefined) { // exact label match
+        owners = ownersForExactLabel;
+    } else { // regex label match
+        for (let i = 0; i < regexList.length; i++) {
+            const re = regexList[i][0];
+            const ownersForRegexLabel = regexList[i][1];
+            if (re.test(label)) {
+                owners = ownersForRegexLabel;
+            }
         }
     }
-    return [];
+    if (owners !== undefined && excludeUser !== undefined) {
+        owners = owners.filter(owner => owner !== excludeUser);
+    }
+    return owners;
 };
 
 exports.labelToOwners = labelToOwners;
@@ -10494,15 +10504,19 @@ const owners = __nccwpck_require__(4245);
 let computeReviewers = function(labels, author, config) {
     const reviewers = new Set();
     labels.forEach(label => {
-        const r1 = owners.labelToOwners(label, config.areaReviewers, config.areaReviewersRegexList);
-        const r2 = owners.labelToOwners(label, config.areaApprovers, config.areaApproversRegexList);
-        r1.forEach(reviewer => reviewers.add(reviewer));
-        r2.forEach(reviewer => reviewers.add(reviewer));
-        if (r1.length > 0 && r2.length < config.minApprovingReviewsPerArea && config.defaultToMaintainers) {
-            console.log(`There are reviewers but not enough approvers for label ${label}, using maintainers as requested`);
-            config.maintainers.forEach(maintainer => reviewers.add(maintainer));
+        const r1 = owners.labelToOwners(label, author, config.areaReviewers, config.areaReviewersRegexList);
+        const r2 = owners.labelToOwners(label, author, config.areaApprovers, config.areaApproversRegexList) || [];
+        if (r1 != undefined) { // known area label
+            r1.forEach(reviewer => reviewers.add(reviewer));
+            if (r2.length < config.minApprovingReviewsPerArea && config.requestReviewsFromMaintainersIfNeeded) {
+                console.log(`There are not enough approvers for label ${label}, using maintainers as requested`);
+                const maintainers = config.maintainers.filter(maintainer => maintainer !== author);
+                maintainers.forEach(maintainer => reviewers.add(maintainer));
+            }
         }
+        r2.forEach(reviewer => reviewers.add(reviewer));
     });
+    // should not be needed
     reviewers.delete(author);
     return Array.from(reviewers);
 };
@@ -10732,9 +10746,10 @@ let getConfig = function() {
         labelOnSuccess: core.getInput('label_on_success'),
         failIfNoAreaLabel: core.getInput('fail_if_no_area_label'),
         succeedIfMaintainerApproves: core.getInput('succeed_if_maintainer_approves'),
+        requestReviewsFromMaintainersIfNeeded: core.getInput('request_reviews_from_maintainers_if_needed'),
         ignoreIfNotLabelledWith: core.getInput('ignore_if_not_labelled_with'),
         failIfNotEnoughAvailableApproversPerArea: core.getInput('fail_if_not_enough_available_approvers_for_area'),
-        defaultToMaintainers: core.getInput('default_to_maintainers'),
+        maintainersAreUniversalApprovers: core.getInput('maintainers_are_universal_approvers'),
    };
 };
 
@@ -10761,9 +10776,11 @@ async function run() {
             return;
         }
 
+        const author = pullRequest.user.login;
+
         const reviewersList = review.computeReviewers(
             labels,
-            pullRequest.user.login,
+            author,
             config,
         );
         console.log(`Assigning reviewers:`, reviewersList);
@@ -10774,6 +10791,7 @@ async function run() {
         console.log(`Currrent approvals: ${approvals}`);
         const canBeMerged = approval.canBeMerged(
             labels,
+            author,
             approvals,
             config,
         );

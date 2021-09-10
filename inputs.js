@@ -5,7 +5,7 @@ let parseOwners = function(path) {
     try {
         const areaOwners = yaml.load(fs.readFileSync(path, 'utf8'));
         return {
-            maintainers: new Set(areaOwners.maintainers || []),
+            maintainers: areaOwners.maintainers || [],
             areaReviewers: new Map(Object.entries(areaOwners.reviewers || {})),
             areaApprovers: new Map(Object.entries(areaOwners.approvers || {})),
         };
