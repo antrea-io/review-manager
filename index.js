@@ -77,7 +77,7 @@ async function run() {
         );
         console.log(`Assigning reviewers:`, reviewersList);
         const pullNumber = pullRequest.number;
-        await review.requireReviewers(owner, repo, pullNumber, token, reviewersList);
+        await review.requestReviewers(owner, repo, pullNumber, token, reviewersList);
 
         const approvals = await approval.getApprovals(owner, repo, pullNumber, token);
         console.log(`Currrent approvals: ${approvals}`);
@@ -89,9 +89,23 @@ async function run() {
         );
         console.log(`Checking if PR can be merged: ${canBeMerged}`);
 
-        if (canBeMerged && config.labelOnSuccess !== '') {
-            console.log(`Labelling PR with ${config.labelOnSuccess}`);
-            await label.addLabel(owner, repo, pullNumber, token, config.labelOnSuccess);
+        if (config.labelOnSuccess !== '') {
+            const hasLabel = labels.includes(config.labelOnSuccess);
+            if (canBeMerged) {
+                if (hasLabel) {
+                    console.log(`PR already labelled with ${config.labelOnSuccess}`);
+                } else {
+                    console.log(`Labelling PR with ${config.labelOnSuccess}`);
+                    await label.addLabel(owner, repo, pullNumber, token, config.labelOnSuccess);
+                }
+            } else {
+                if (hasLabel) {
+                    console.log(`Unlabelling PR with ${config.labelOnSuccess}`);
+                    await label.removeLabel(owner, repo, pullNumber, token, config.labelOnSuccess);
+                } else {
+                    console.log(`PR is not labelled with ${config.labelOnSuccess}`);
+                }
+            }
         }
 
         if (!canBeMerged && config.failIfMissingApprovingReviews) {
