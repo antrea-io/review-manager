@@ -9,7 +9,7 @@ describe('PR can be merged', () => {
     let approvers;
     let minApprovingReviewsTotal;
     let minApprovingReviewsPerArea;
-    let failIfNoAreaLabel;
+    let requireAreaLabel;
     let succeedIfMaintainerApproves;
     let failIfNotEnoughAvailableApproversPerArea;
     let requestReviewsFromMaintainersIfNeeded;
@@ -26,7 +26,7 @@ describe('PR can be merged', () => {
             areaApprovers: areaApprovers,
             areaReviewersRegexList: owners.buildRegexList(areaReviewers),
             areaApproversRegexList: owners.buildRegexList(areaApprovers),
-            failIfNoAreaLabel: failIfNoAreaLabel,
+            requireAreaLabel: requireAreaLabel,
             succeedIfMaintainerApproves: succeedIfMaintainerApproves,
             failIfNotEnoughAvailableApproversPerArea: failIfNotEnoughAvailableApproversPerArea,
             requestReviewsFromMaintainersIfNeeded: requestReviewsFromMaintainersIfNeeded,
@@ -49,7 +49,7 @@ describe('PR can be merged', () => {
         maintainers = [];
         minApprovingReviewsTotal = 2;
         minApprovingReviewsPerArea = 1;
-        failIfNoAreaLabel = true;
+        requireAreaLabel = true;
         succeedIfMaintainerApproves = false;
         requestReviewsFromMaintainersIfNeeded = false;
         failIfNotEnoughAvailableApproversPerArea = false;
@@ -80,7 +80,7 @@ describe('PR can be merged', () => {
 
     test('accept no area label', async () => {
         labels = [];
-        failIfNoAreaLabel = false;
+        requireAreaLabel = false;
         const approvals = new Set(['alice', 'joe']);
         expect(canBeMerged(approvals)).toBeTruthy();
     });

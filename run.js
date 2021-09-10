@@ -34,13 +34,13 @@ let getConfig = function() {
         areaApprovers: areaApprovers,
         areaReviewersRegexList: areaReviewersRegexList,
         areaApproversRegexList: areaApproversRegexList,
-        failIfMissingApprovingReviews: core.getInput('fail_if_missing_approving_reviews'),
+        failIfCannotBeMerged: core.getInput('fail_if_cannot_be_merged'),
         labelOnSuccess: core.getInput('label_on_success'),
-        failIfNoAreaLabel: core.getInput('fail_if_no_area_label'),
+        requireAreaLabel: core.getInput('require_area_label'),
         succeedIfMaintainerApproves: core.getInput('succeed_if_maintainer_approves'),
         requestReviewsFromMaintainersIfNeeded: core.getInput('request_reviews_from_maintainers_if_needed'),
         ignoreIfNotLabelledWith: core.getInput('ignore_if_not_labelled_with'),
-        failIfNotEnoughAvailableApproversPerArea: core.getInput('fail_if_not_enough_available_approvers_for_area'),
+        failIfNotEnoughAvailableApproversPerArea: core.getInput('require_enough_available_approvers_for_area'),
         maintainersAreUniversalApprovers: core.getInput('maintainers_are_universal_approvers'),
    };
 };
@@ -108,7 +108,7 @@ async function run() {
             }
         }
 
-        if (!canBeMerged && config.failIfMissingApprovingReviews) {
+        if (!canBeMerged && config.failIfCannotBeMerged) {
             core.setFailed(`Not enough approving reviews for PR`);
         }
     } catch (error) {

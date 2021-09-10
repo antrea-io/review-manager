@@ -58,9 +58,9 @@ describe('run', () => {
         });
     });
 
-    function setContextPayload(labels, author) {
+    function setContextPayload(labels, author, draft = false) {
         pullRequest = {
-            draft: false,
+            draft: draft,
             number: pullRequestNumber,
             user: {
                 login: author,
@@ -80,9 +80,9 @@ describe('run', () => {
             min_approving_reviews_total: 2,
             min_approving_reviews_per_area: 1,
             area_ownership_file: 'testdata/owners.yml',
-            fail_if_missing_approving_reviews: true,
+            fail_if_cannot_be_merged: true,
             label_on_success: successLabel,
-            fail_if_no_area_label: true,
+            require_area_label: true,
             succeed_if_maintainer_approves: false,
             request_reviews_from_maintainers_if_neede: true,
             ignore_if_not_labelled_with: '',
@@ -125,6 +125,7 @@ describe('run', () => {
             labels: [successLabel],
         }]);
         expect(mockRemoveLabel.mock.calls.length).toBe(0);
+        expect(core.setFailed.mock.calls.length).toBe(0);
     });
 
     test('remove success label', async () => {
@@ -143,5 +144,25 @@ describe('run', () => {
             issue_number: pullRequestNumber,
             label: successLabel,
         }]);
+        expect(core.setFailed.mock.calls.length).toBe(1);
+    });
+
+    test('missing area label', async () => {
+        setContextPayload(labels, author);
+        await run();
+        expect(core.setFailed.mock.calls.length).toBe(1);
+    });
+
+    test('ignore if draft', async () => {
+        setContextPayload(labels, author, true);
+        await run();
+        expect(core.setFailed.mock.calls.length).toBe(0);
+    });
+
+    test('ignore if not labelled with', async () => {
+        setContextPayload(labels, author);
+        inputs.ignore_if_not_labelled_with = 'review-manager';
+        await run();
+        expect(core.setFailed.mock.calls.length).toBe(0);
     });
 });
