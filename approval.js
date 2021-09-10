@@ -73,7 +73,7 @@ let canBeMerged = function(labels, author, approvals, config) {
         result = false;
     }
 
-    if (approvalsByArea.size < 1 && config.failIfNoAreaLabel) {
+    if (approvalsByArea.size < 1 && config.requireAreaLabel) {
         console.log(`At least one area label is required for a pull request`);
         result = false;
     }

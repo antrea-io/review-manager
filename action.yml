@@ -15,16 +15,16 @@ inputs:
     description: 'Repository file which includes the owners for each area label'
     required: true
     default: '.github/AREA-OWNERS'
-  fail_if_missing_approving_reviews:
-    description: 'Fail action if there are not enough approving reviews'
+  fail_if_cannot_be_merged:
+    description: 'Fail action if the PR cannot be merged (e.g. not enough approving reviews)'
     required: false
     default: false
   label_on_success:
-    description: 'Label the PR with this label if there are enough approving reviews'
+    description: 'Label the PR with this label on success, i.e. if it can be merged (enough approving reviews)'
     required: false
     default: ''
-  fail_if_no_area_label:
-    description: 'If the PR is not labelled with any label from the ownership file, fail'
+  require_area_label:
+    description: 'Require that each PR be labelled with at last one label from the ownership file'
     required: false
     default: true
   succeed_if_maintainer_approves:
@@ -39,8 +39,8 @@ inputs:
     description: 'Ignore all PRs not labelled with this label'
     required: false
     default: ''
-  fail_if_not_enough_available_approvers_for_area:
-    description: 'Fail if there are not enough available reviewers (< min_approving_reviews_per_area) defined for a given area'
+  require_enough_available_approvers_for_area:
+    description: 'There must be enough available reviewers (< min_approving_reviews_per_area) defined each area label'
     required: false
     default: false
   support_label_regex:
