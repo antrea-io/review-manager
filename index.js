@@ -38,9 +38,10 @@ let getConfig = function() {
         labelOnSuccess: core.getInput('label_on_success'),
         failIfNoAreaLabel: core.getInput('fail_if_no_area_label'),
         succeedIfMaintainerApproves: core.getInput('succeed_if_maintainer_approves'),
+        requestReviewsFromMaintainersIfNeeded: core.getInput('request_reviews_from_maintainers_if_needed'),
         ignoreIfNotLabelledWith: core.getInput('ignore_if_not_labelled_with'),
         failIfNotEnoughAvailableApproversPerArea: core.getInput('fail_if_not_enough_available_approvers_for_area'),
-        defaultToMaintainers: core.getInput('default_to_maintainers'),
+        maintainersAreUniversalApprovers: core.getInput('maintainers_are_universal_approvers'),
    };
 };
 
@@ -67,9 +68,11 @@ async function run() {
             return;
         }
 
+        const author = pullRequest.user.login;
+
         const reviewersList = review.computeReviewers(
             labels,
-            pullRequest.user.login,
+            author,
             config,
         );
         console.log(`Assigning reviewers:`, reviewersList);
@@ -80,6 +83,7 @@ async function run() {
         console.log(`Currrent approvals: ${approvals}`);
         const canBeMerged = approval.canBeMerged(
             labels,
+            author,
             approvals,
             config,
         );

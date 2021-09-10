@@ -31,6 +31,10 @@ inputs:
     description: 'Automatically succeeds if a maintainer left an approving review'
     required: false
     default: false
+  maintainers_are_universal_approvers:
+    description: 'Maintainers can provide an approving review for each area label'
+    required: false
+    default: false
   ignore_if_not_labelled_with:
     description: 'Ignore all PRs not labelled with this label'
     required: false
@@ -43,8 +47,8 @@ inputs:
     description: 'Support regexes for labels in ownership file'
     required: false
     default: true
-  default_to_maintainers:
-    description: 'If an area label has reviewers but not enough approvers, maintainers are used as approvers'
+  request_reviews_from_maintainers_if_needed:
+    description: 'If an area label does not have enough approvers, request reviews from maintainers'
     required: false
     default: false
 runs:
