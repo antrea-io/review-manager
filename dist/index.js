@@ -141,12 +141,13 @@ async function addLabel(owner, repo, pullNumber, token, label) {
     const octokit = github.getOctokit(token);
 
     console.log(
+        "add label",
         JSON.stringify({
-        owner: owner,
-        repo: repo,
-        pull_number: pullNumber,
-        label: label,
-      })
+            owner: owner,
+            repo: repo,
+            pull_number: pullNumber,
+            label: label,
+        })
     );
 
     try {
@@ -162,7 +163,34 @@ async function addLabel(owner, repo, pullNumber, token, label) {
     }
 }
 
+async function removeLabel(owner, repo, pullNumber, token, label) {
+    const octokit = github.getOctokit(token);
+
+    console.log(
+        "remove label",
+        JSON.stringify({
+            owner: owner,
+            repo: repo,
+            pull_number: pullNumber,
+            label: label,
+        })
+    );
+
+    try {
+        await octokit.rest.issues.removeLabel({
+            owner: owner,
+            repo: repo,
+            issue_number: pullNumber,
+            label: label,
+        });
+    } catch(error) {
+        console.log(`cannot remove label: ${error}`);
+        throw error;
+    }
+}
+
 exports.addLabel = addLabel;
+exports.removeLabel = removeLabel;
 
 
 /***/ }),
@@ -10521,17 +10549,18 @@ let computeReviewers = function(labels, author, config) {
     return Array.from(reviewers);
 };
 
-async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
+async function requestReviewers(owner, repo, pullNumber, token, reviewers) {
     // const octokit = github.getOctokit(token, {log: console});
     const octokit = github.getOctokit(token, {log: __nccwpck_require__(385)({ level: "debug" })});
 
     console.log(
-      JSON.stringify({
-        owner: owner,
-        repo: repo,
-        pull_number: pullNumber,
-        reviewers: reviewers,
-      })
+        "request reviewers",
+        JSON.stringify({
+            owner: owner,
+            repo: repo,
+            pull_number: pullNumber,
+            reviewers: reviewers,
+        })
     );
 
     try {
@@ -10542,13 +10571,13 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             reviewers: reviewers,
         });
     } catch(error) {
-        console.log(`cannot assign reviewers: ${error}`);
+        console.log(`cannot request reviewers: ${error}`);
         throw error;
     }
 }
 
 exports.computeReviewers = computeReviewers;
-exports.requireReviewers = requireReviewers;
+exports.requestReviewers = requestReviewers;
 
 
 /***/ }),
@@ -10785,7 +10814,7 @@ async function run() {
         );
         console.log(`Assigning reviewers:`, reviewersList);
         const pullNumber = pullRequest.number;
-        await review.requireReviewers(owner, repo, pullNumber, token, reviewersList);
+        await review.requestReviewers(owner, repo, pullNumber, token, reviewersList);
 
         const approvals = await approval.getApprovals(owner, repo, pullNumber, token);
         console.log(`Currrent approvals: ${approvals}`);
@@ -10797,9 +10826,23 @@ async function run() {
         );
         console.log(`Checking if PR can be merged: ${canBeMerged}`);
 
-        if (canBeMerged && config.labelOnSuccess !== '') {
-            console.log(`Labelling PR with ${config.labelOnSuccess}`);
-            await label.addLabel(owner, repo, pullNumber, token, config.labelOnSuccess);
+        if (config.labelOnSuccess !== '') {
+            const hasLabel = labels.includes(config.labelOnSuccess);
+            if (canBeMerged) {
+                if (hasLabel) {
+                    console.log(`PR already labelled with ${config.labelOnSuccess}`);
+                } else {
+                    console.log(`Labelling PR with ${config.labelOnSuccess}`);
+                    await label.addLabel(owner, repo, pullNumber, token, config.labelOnSuccess);
+                }
+            } else {
+                if (hasLabel) {
+                    console.log(`Unlabelling PR with ${config.labelOnSuccess}`);
+                    await label.removeLabel(owner, repo, pullNumber, token, config.labelOnSuccess);
+                } else {
+                    console.log(`PR is not labelled with ${config.labelOnSuccess}`);
+                }
+            }
         }
 
         if (!canBeMerged && config.failIfMissingApprovingReviews) {

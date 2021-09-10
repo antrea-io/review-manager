@@ -21,17 +21,18 @@ let computeReviewers = function(labels, author, config) {
     return Array.from(reviewers);
 };
 
-async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
+async function requestReviewers(owner, repo, pullNumber, token, reviewers) {
     // const octokit = github.getOctokit(token, {log: console});
     const octokit = github.getOctokit(token, {log: require("console-log-level")({ level: "debug" })});
 
     console.log(
-      JSON.stringify({
-        owner: owner,
-        repo: repo,
-        pull_number: pullNumber,
-        reviewers: reviewers,
-      })
+        "request reviewers",
+        JSON.stringify({
+            owner: owner,
+            repo: repo,
+            pull_number: pullNumber,
+            reviewers: reviewers,
+        })
     );
 
     try {
@@ -42,10 +43,10 @@ async function requireReviewers(owner, repo, pullNumber, token, reviewers) {
             reviewers: reviewers,
         });
     } catch(error) {
-        console.log(`cannot assign reviewers: ${error}`);
+        console.log(`cannot request reviewers: ${error}`);
         throw error;
     }
 }
 
 exports.computeReviewers = computeReviewers;
-exports.requireReviewers = requireReviewers;
+exports.requestReviewers = requestReviewers;
