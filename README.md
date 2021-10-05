@@ -35,7 +35,7 @@ jobs:
     steps:
     - name: Check-out code
       uses: actions/checkout@v2
-    - uses: antrea-io/review-manager@v0.3.0
+    - uses: antrea-io/review-manager@v0.3.1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         area_ownership_file: 'AREA-OWNERS'
