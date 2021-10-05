@@ -58,7 +58,7 @@ describe('run', () => {
         });
     });
 
-    function setContextPayload(labels, author, draft = false) {
+    function setContextPayload(labels, author, draft = false, review = undefined) {
         pullRequest = {
             draft: draft,
             number: pullRequestNumber,
@@ -72,6 +72,9 @@ describe('run', () => {
         github.context.payload = {
             pull_request: pullRequest,
         };
+        if (review !== undefined) {
+            github.context.payload.review = review;
+        }
     }
 
     beforeEach(() => {
@@ -130,12 +133,13 @@ describe('run', () => {
 
     test('remove success label', async () => {
         labels = ['area/area-1', successLabel];
-        setContextPayload(labels, author);
+        setContextPayload(labels, author, false /* draft */, {} /* pull_request_review */);
         const reviews = [
             {user: {login: 'bob'}, state: 'APPROVED' },
         ];
         mockListReviews.mockReturnValueOnce([{data: reviews}]);
         await run();
+        expect(mockRequestReviewers.mock.calls.length).toBe(0);
         expect(mockAddLabels.mock.calls.length).toBe(0);
         expect(mockRemoveLabel.mock.calls.length).toBe(1);
         expect(mockRemoveLabel.mock.calls[0]).toEqual([{

@@ -10642,6 +10642,10 @@ async function run() {
         // Get the JSON webhook payload for the event that triggered the workflow
         const payload = JSON.stringify(github.context.payload, undefined, 2);
         console.debug(`The event payload: ${payload}`);
+        const isPullRequestReview = 'review' in github.context.payload;
+        if (isPullRequestReview) {
+            console.log(`This was triggered by a pull_request_review event`);
+        }
         const pullRequest = github.context.payload.pull_request;
         const labels = extractLabelNames(pullRequest.labels);
 
@@ -10656,15 +10660,17 @@ async function run() {
         }
 
         const author = pullRequest.user.login;
-
-        const reviewersList = review.computeReviewers(
-            labels,
-            author,
-            config,
-        );
-        console.log(`Assigning reviewers:`, reviewersList);
         const pullNumber = pullRequest.number;
-        await review.requestReviewers(owner, repo, pullNumber, token, reviewersList);
+
+        if (!isPullRequestReview) {
+            const reviewersList = review.computeReviewers(
+                labels,
+                author,
+                config,
+            );
+            console.log(`Assigning reviewers:`, reviewersList);
+            await review.requestReviewers(owner, repo, pullNumber, token, reviewersList);
+        }
 
         const approvals = await approval.getApprovals(owner, repo, pullNumber, token);
         console.log(`Currrent approvals: ${approvals}`);

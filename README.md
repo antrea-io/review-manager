@@ -79,7 +79,13 @@ reviewers be approvers. In this case, just omit the `reviewers` key altogether.
 
 ### Configuration Options
 
-TODO
+Refer to [action.yml](action.yml) for full list.
+
+TODO: add all options to the table below
+
+| Name | Description | Notes |
+| ---- | ----------- | ----- |
+| `label_on_success` | Label the PR with this label on success, i.e. if it can be merged (enough approving reviews) | Requires that `pull_request_review` worfklows run with a write token, which is not possible for public repositories. |
 
 ### `pull_request_target`
 
